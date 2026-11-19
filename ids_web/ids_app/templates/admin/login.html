@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div class="cyberpunk-login">
+    <h2>🔐 Cyberpunk IDS Login</h2>
+    <form method="post" action="{% url 'admin:login' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="cyberpunk-btn">Login</button>
+    </form>
+</div>
+{% endblock %}

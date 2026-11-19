@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrNN Granular Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0d0a10;
+            color: #e8d5ea;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Topbar (matches existing) ────────────────────────── */
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 30px;
+            background: rgba(20, 12, 25, 0.95);
+            border-bottom: 1px solid rgba(255, 105, 180, 0.15);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .topbar-brand {
+            font-family: 'Orbitron', sans-serif; font-size: 18px;
+            color: #ff69b4; text-shadow: 0 0 8px rgba(255, 105, 180, 0.4);
+            letter-spacing: 2px;
+        }
+        .topbar-nav { display: flex; gap: 6px; }
+        .topbar-nav a {
+            font-family: 'Rajdhani', sans-serif;
+            color: rgba(255, 105, 180, 0.4); text-decoration: none;
+            padding: 8px 16px; border-radius: 6px; font-size: 14px;
+            font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+            transition: all 0.35s ease; position: relative;
+        }
+        .topbar-nav a::after {
+            content: ''; position: absolute; bottom: 4px; left: 50%;
+            width: 0; height: 1px; background: #ff69b4;
+            transition: width 0.3s ease, left 0.3s ease;
+        }
+        .topbar-nav a:hover { color: #ff69b4; background: rgba(255, 105, 180, 0.08); }
+        .topbar-nav a:hover::after { width: 60%; left: 20%; }
+        .topbar-nav a.active { color: #ff69b4; background: rgba(255, 105, 180, 0.12); }
+        .topbar-nav a.active::after { width: 60%; left: 20%; }
+
+        /* ── Main layout ──────────────────────────────────────── */
+        .main-wrap { max-width: 1200px; margin: 0 auto; padding: 30px 24px 60px; }
+
+        .page-header { margin-bottom: 24px; }
+        .page-header h1 {
+            font-family: 'Orbitron', sans-serif; font-size: 26px;
+            color: #ff69b4; text-shadow: 0 0 12px rgba(255, 105, 180, 0.3);
+            margin-bottom: 6px;
+        }
+        .page-header p { font-size: 15px; color: rgba(255, 105, 180, 0.4); letter-spacing: 1px; }
+
+        /* ── Panel (reusable card) ─────────────────────────────── */
+        .panel {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 14px; padding: 24px;
+            transition: border-color 0.3s ease; margin-bottom: 20px;
+        }
+        .panel:hover { border-color: rgba(255, 105, 180, 0.25); }
+        .panel h2 {
+            font-family: 'Orbitron', sans-serif; font-size: 15px;
+            color: #ff69b4; letter-spacing: 1px; margin-bottom: 16px;
+        }
+        .panel h3 {
+            font-family: 'Orbitron', sans-serif; font-size: 13px;
+            color: #ff69b4; letter-spacing: 1px; margin-bottom: 14px;
+            text-align: center; width: 100%;
+        }
+
+        /* ── Tabs ──────────────────────────────────────────────── */
+        .tab-row { display: flex; gap: 4px; margin-bottom: 24px; }
+        .tab-btn {
+            font-family: 'Rajdhani', sans-serif;
+            padding: 10px 22px; border-radius: 8px;
+            border: 1px solid rgba(255, 105, 180, 0.15);
+            background: transparent; color: rgba(255, 105, 180, 0.45);
+            font-size: 14px; font-weight: 600; letter-spacing: 1px;
+            text-transform: uppercase; cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .tab-btn:hover { color: #ff69b4; border-color: rgba(255, 105, 180, 0.35); }
+        .tab-btn.active {
+            color: #ff69b4; background: rgba(255, 105, 180, 0.12);
+            border-color: rgba(255, 105, 180, 0.4);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── Upload area ──────────────────────────────────────── */
+        .upload-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start;
+        }
+        .drop-zone {
+            border: 2px dashed rgba(255, 105, 180, 0.2); border-radius: 10px;
+            padding: 36px 20px; text-align: center; cursor: pointer;
+            transition: all 0.3s ease; margin-bottom: 16px;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: rgba(255, 105, 180, 0.5);
+            background: rgba(255, 105, 180, 0.04);
+        }
+        .drop-icon { font-size: 36px; margin-bottom: 8px; }
+        .drop-text { font-size: 14px; color: rgba(255, 105, 180, 0.45); margin-bottom: 4px; }
+        .drop-hint { font-size: 12px; color: rgba(255, 105, 180, 0.25); }
+        .file-input-hidden { display: none; }
+        .selected-file {
+            font-size: 13px; color: #ff69b4; margin-bottom: 12px;
+            padding: 8px 12px; background: rgba(255, 105, 180, 0.06);
+            border-radius: 6px; display: none;
+        }
+        .detect-btn {
+            width: 100%; font-family: 'Orbitron', sans-serif;
+            font-size: 14px; letter-spacing: 1px; padding: 14px; border: none;
+            border-radius: 8px; cursor: pointer;
+            background: linear-gradient(135deg, rgba(255, 105, 180, 0.25), rgba(255, 20, 147, 0.35));
+            color: #ff69b4; border: 1px solid rgba(255, 105, 180, 0.3);
+            transition: all 0.3s ease;
+        }
+        .detect-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 105, 180, 0.35), rgba(255, 20, 147, 0.5));
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.15); transform: translateY(-1px);
+        }
+
+        /* ── Progress bar ─────────────────────────────────────── */
+        .processing-bar { display: none; margin-top: 16px; }
+        .processing-bar.show { display: block; }
+        .pbar-track { width: 100%; height: 3px; background: rgba(255, 105, 180, 0.1); border-radius: 3px; overflow: hidden; }
+        .pbar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff69b4, #ff1493); border-radius: 3px; transition: width 0.3s ease; }
+        .pbar-label { font-size: 12px; color: rgba(255, 105, 180, 0.4); margin-top: 6px; text-align: center; letter-spacing: 1px; }
+
+        /* ── Stats row ────────────────────────────────────────── */
+        .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+        .stat-card {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12); border-radius: 12px;
+            padding: 16px; text-align: left; transition: transform 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        .stat-card::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 3px; height: 100%; border-radius: 3px 0 0 3px;
+        }
+        .stat-card:hover { transform: translateY(-2px); border-color: rgba(255, 105, 180, 0.3); }
+        .stat-card:nth-child(1)::before { background: #ff69b4; }
+        .stat-card:nth-child(2)::before { background: #ff4d6a; }
+        .stat-card:nth-child(3)::before { background: #6ea8fe; }
+        .stat-card:nth-child(4)::before { background: #ffaa44; }
+        .stat-card:nth-child(5)::before { background: #c084fc; }
+        .stat-label {
+            font-size: 11px; color: rgba(255, 105, 180, 0.5);
+            text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;
+        }
+        .stat-value {
+            font-family: 'Orbitron', sans-serif; font-size: 24px;
+            color: #ff69b4; text-shadow: 0 0 6px rgba(255, 105, 180, 0.2);
+        }
+        .stat-sub { font-size: 11px; color: rgba(255, 105, 180, 0.3); margin-top: 4px; }
+
+        /* ── Comparison section ────────────────────────────────── */
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 22px; }
+        .compare-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+        }
+        .compare-tag {
+            font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 10px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .tag-trad { background: rgba(255, 77, 106, 0.15); color: #ff4d6a; border: 1px solid rgba(255, 77, 106, 0.3); }
+        .tag-grnn { background: rgba(110, 168, 254, 0.15); color: #6ea8fe; border: 1px solid rgba(110, 168, 254, 0.3); }
+
+        /* ── Charts ───────────────────────────────────────────── */
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+        .chart-wrap { position: relative; height: 220px; }
+
+        /* ── Granule cards ─────────────────────────────────────── */
+        .granule-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
+        .granule-card {
+            border-radius: 12px; padding: 20px; text-align: center;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+            cursor: default;
+        }
+        .granule-card:hover { transform: translateY(-3px); }
+        .granule-card.micro {
+            background: rgba(110, 168, 254, 0.06);
+            border: 1px solid rgba(110, 168, 254, 0.2);
+        }
+        .granule-card.meso {
+            background: rgba(255, 170, 68, 0.06);
+            border: 1px solid rgba(255, 170, 68, 0.2);
+        }
+        .granule-card.macro {
+            background: rgba(192, 132, 252, 0.06);
+            border: 1px solid rgba(192, 132, 252, 0.2);
+        }
+        .gc-icon { font-size: 28px; margin-bottom: 8px; }
+        .gc-title { font-family: 'Orbitron', sans-serif; font-size: 13px; color: #e8d5ea; margin-bottom: 6px; }
+        .gc-value { font-family: 'Orbitron', sans-serif; font-size: 26px; margin-bottom: 4px; }
+        .gc-value.micro-c { color: #6ea8fe; }
+        .gc-value.meso-c { color: #ffaa44; }
+        .gc-value.macro-c { color: #c084fc; }
+        .gc-desc { font-size: 12px; color: rgba(232, 213, 234, 0.45); margin-top: 6px; line-height: 1.5; }
+        .gc-catches { font-size: 11px; color: rgba(255, 105, 180, 0.35); margin-top: 8px; font-style: italic; }
+
+        /* ── Comparison table ──────────────────────────────────── */
+        .comparison-table-wrap {
+            max-height: 450px; overflow-y: auto;
+            border: 1px solid rgba(255, 105, 180, 0.1); border-radius: 12px;
+        }
+        .comparison-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .comparison-table thead th {
+            background: rgba(20, 10, 28, 0.98); padding: 10px 12px; text-align: left;
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+            color: rgba(255, 105, 180, 0.45); border-bottom: 1px solid rgba(255, 105, 180, 0.1);
+            position: sticky; top: 0; z-index: 2;
+        }
+        .comparison-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255, 105, 180, 0.05); color: #d4a5c5; }
+        .comparison-table tr:hover td { background: rgba(255, 105, 180, 0.03); }
+
+        /* Badges */
+        .badge {
+            display: inline-block; font-size: 11px; font-weight: 700;
+            padding: 2px 9px; border-radius: 10px; letter-spacing: 0.5px;
+        }
+        .badge-normal { background: rgba(108, 200, 108, 0.15); color: #6cc86c; border: 1px solid rgba(108, 200, 108, 0.25); }
+        .badge-attack { background: rgba(255, 77, 106, 0.15); color: #ff4d6a; border: 1px solid rgba(255, 77, 106, 0.3); }
+        .badge-micro { background: rgba(110, 168, 254, 0.12); color: #6ea8fe; }
+        .badge-meso { background: rgba(255, 170, 68, 0.12); color: #ffaa44; }
+        .badge-macro { background: rgba(192, 132, 252, 0.12); color: #c084fc; }
+
+        /* Alpha bars */
+        .alpha-bars { display: flex; flex-direction: column; gap: 2px; width: 90px; }
+        .alpha-bar { height: 4px; border-radius: 2px; transition: width 0.4s ease; min-width: 2px; }
+        .bar-micro { background: #6ea8fe; }
+        .bar-meso { background: #ffaa44; }
+        .bar-macro { background: #c084fc; }
+
+        /* Confidence */
+        .conf { font-family: 'Orbitron', sans-serif; font-size: 12px; }
+
+        /* ── "Why" explanation section ─────────────────────────── */
+        .why-section { margin-bottom: 22px; }
+        .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .why-card {
+            border-radius: 12px; padding: 22px;
+            transition: border-color 0.3s ease;
+        }
+        .why-card.bad {
+            background: rgba(255, 77, 106, 0.04);
+            border: 1px solid rgba(255, 77, 106, 0.15);
+        }
+        .why-card.good {
+            background: rgba(110, 168, 254, 0.04);
+            border: 1px solid rgba(110, 168, 254, 0.15);
+        }
+        .why-card h3 { text-align: left; margin-bottom: 14px; }
+        .why-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .why-list li {
+            font-size: 13.5px; color: rgba(232, 213, 234, 0.65);
+            padding-left: 20px; position: relative; line-height: 1.5;
+        }
+        .why-list li::before { position: absolute; left: 0; }
+        .why-card.bad .why-list li::before { content: '✕'; color: #ff4d6a; }
+        .why-card.good .why-list li::before { content: '✓'; color: #6ea8fe; }
+
+        /* ── Attack coverage table ────────────────────────────── */
+        .coverage-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .coverage-table th {
+            text-align: left; font-size: 11px; color: rgba(255, 105, 180, 0.45);
+            text-transform: uppercase; letter-spacing: 1.5px; padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 105, 180, 0.1);
+        }
+        .coverage-table td {
+            padding: 10px 14px; border-bottom: 1px solid rgba(255, 105, 180, 0.05);
+            font-size: 14px; color: #d4a5c5;
+        }
+        .coverage-table tr:hover td { background: rgba(255, 105, 180, 0.03); }
+
+        /* ── Radar fingerprint cards ──────────────────────────── */
+        .radar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 22px; }
+        .radar-card {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12); border-radius: 12px;
+            padding: 18px; text-align: center; transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+        .radar-card:hover { transform: translateY(-3px); border-color: rgba(255, 105, 180, 0.3); }
+        .radar-label { font-family: 'Orbitron', sans-serif; font-size: 12px; color: #ff69b4; letter-spacing: 1px; margin-bottom: 4px; }
+        .radar-count { font-size: 11px; color: rgba(255, 105, 180, 0.35); margin-bottom: 10px; }
+        .radar-wrap { height: 180px; position: relative; }
+
+        /* ── Ablation cards ───────────────────────────────────── */
+        .ablation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
+        .ablation-card {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12); border-radius: 12px;
+            padding: 20px; text-align: center; transition: transform 0.25s ease;
+        }
+        .ablation-card:hover { transform: translateY(-3px); }
+        .ablation-card.disabled-micro { border-color: rgba(110, 168, 254, 0.3); }
+        .ablation-card.disabled-meso { border-color: rgba(255, 170, 68, 0.3); }
+        .ablation-card.disabled-macro { border-color: rgba(192, 132, 252, 0.3); }
+        .abl-title { font-family: 'Orbitron', sans-serif; font-size: 12px; color: #ff69b4; letter-spacing: 1px; margin-bottom: 6px; }
+        .abl-subtitle { font-size: 11px; color: rgba(255, 105, 180, 0.35); margin-bottom: 14px; }
+        .abl-accuracy { font-family: 'Orbitron', sans-serif; font-size: 32px; margin-bottom: 4px; }
+        .abl-drop { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+        .abl-drop.severe { color: #ff4d6a; }
+        .abl-drop.moderate { color: #ffaa44; }
+        .abl-drop.mild { color: #6cc86c; }
+        .abl-detail { font-size: 12px; color: rgba(232, 213, 234, 0.5); line-height: 1.6; }
+        .abl-bar-bg { width: 100%; height: 6px; background: rgba(255, 105, 180, 0.08); border-radius: 4px; margin: 10px 0; overflow: hidden; }
+        .abl-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+        .abl-bar-fill.micro-fill { background: #6ea8fe; }
+        .abl-bar-fill.meso-fill { background: #ffaa44; }
+        .abl-bar-fill.macro-fill { background: #c084fc; }
+
+        /* ── Error ────────────────────────────────────────────── */
+        .error-box {
+            background: rgba(255, 50, 50, 0.1); border: 1px solid rgba(255, 50, 50, 0.25);
+            border-radius: 10px; padding: 14px 20px; color: #ff6666;
+            margin-bottom: 18px; font-size: 14px;
+        }
+
+        /* Scrollbar */
+        .comparison-table-wrap::-webkit-scrollbar { width: 5px; }
+        .comparison-table-wrap::-webkit-scrollbar-track { background: rgba(255, 105, 180, 0.05); }
+        .comparison-table-wrap::-webkit-scrollbar-thumb { background: rgba(255, 105, 180, 0.2); border-radius: 3px; }
+
+        @media (max-width: 900px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid, .compare-grid, .granule-row, .why-grid { grid-template-columns: 1fr; }
+            .upload-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <div class="topbar">
+        <span class="topbar-brand">IDS</span>
+        <nav class="topbar-nav">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'index' %}">Analytics</a>
+            <a href="{% url 'ids_detection' %}">Detect</a>
+            <a href="{% url 'grnn_analysis' %}" class="active">GrNN</a>
+        </nav>
+    </div>
+
+    <div class="main-wrap">
+        <div class="page-header">
+            <h1>Granular Neural Network Analysis</h1>
+            <p>Multi-scale threat detection &#8212; Traditional AI vs. GrNN comparison</p>
+        </div>
+
+        {% if error %}
+        <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        <!-- Tab Navigation -->
+        <div class="tab-row">
+            <button class="tab-btn active" onclick="switchTab('explain', this)">How It Works</button>
+            <button class="tab-btn" onclick="switchTab('analyze', this)">Analyze Dataset</button>
+            {% if has_results %}
+            <button class="tab-btn" onclick="switchTab('results', this)" id="resultsTabBtn">Comparison Results</button>
+            {% endif %}
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             TAB 1: EXPLANATION — What is granulation & why it matters
+             ═══════════════════════════════════════════════════════ -->
+        <div class="tab-content active" id="tab-explain">
+
+            <!-- Granule Architecture Cards -->
+            <div class="granule-row">
+                <div class="granule-card micro">
+                    <div class="gc-icon">&#9889;</div>
+                    <div class="gc-title">Micro Granule</div>
+                    <div class="gc-value micro-c">31</div>
+                    <div class="gc-desc">Packet-level features<br/>Flags &#183; Headers &#183; Payload sizes</div>
+                    <div class="gc-catches">Catches: DDoS &#183; SQLi &#183; SYN Flood &#183; XSS</div>
+                </div>
+                <div class="granule-card meso">
+                    <div class="gc-icon">&#128260;</div>
+                    <div class="gc-title">Meso Granule</div>
+                    <div class="gc-value meso-c">25</div>
+                    <div class="gc-desc">Flow/session-level features<br/>Rates &#183; Volumes &#183; Window sizes</div>
+                    <div class="gc-catches">Catches: Port Scan &#183; Fast Brute Force &#183; MITM</div>
+                </div>
+                <div class="granule-card macro">
+                    <div class="gc-icon">&#127760;</div>
+                    <div class="gc-title">Macro Granule</div>
+                    <div class="gc-value macro-c">22</div>
+                    <div class="gc-desc">Temporal IAT patterns<br/>Active &#183; Idle &#183; Periodicity</div>
+                    <div class="gc-catches">Catches: Slow Brute Force &#183; Botnet C2 &#183; APT</div>
+                </div>
+            </div>
+
+            <!-- Why section -->
+            <div class="why-section">
+                <div class="panel" style="padding-bottom: 8px;">
+                    <h2>Why Granulation Changes Everything</h2>
+                </div>
+                <div class="why-grid">
+                    <div class="why-card bad">
+                        <h3 style="color: #ff4d6a;">&#10060; Traditional AI / ML Model</h3>
+                        <ul class="why-list">
+                            <li>Inspects each packet row in complete isolation with no temporal memory</li>
+                            <li>Treats all 78 features at a single, uniform scale</li>
+                            <li>Completely misses slow brute-force attempts spread over hours</li>
+                            <li>Cannot distinguish which feature level triggered the alert</li>
+                            <li>Drowns rare attack classes in majority-class noise (class imbalance)</li>
+                            <li>Runs heavy full inference on every single packet</li>
+                        </ul>
+                    </div>
+                    <div class="why-card good">
+                        <h3 style="color: #6ea8fe;">&#9989; Granular Neural Network (GrNN)</h3>
+                        <ul class="why-list">
+                            <li>Processes traffic at micro, meso, and macro scale simultaneously</li>
+                            <li>Splits 78 features into 3 semantically meaningful granule groups</li>
+                            <li>Macro granule catches stealth attacks across hours of history</li>
+                            <li>Reports exactly which granule flagged the threat with alpha weights</li>
+                            <li>Class-weighted granular attention isolates rare attack patterns</li>
+                            <li>Micro-subnet acts as fast pre-filter, reducing compute by up to 70%</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attack coverage table -->
+            <div class="panel">
+                <h2>Attack Coverage Across All Three Granules</h2>
+                <table class="coverage-table">
+                    <thead>
+                        <tr><th>Attack Type</th><th>Granule Level</th><th>Why GrNN Catches It</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>&#9889; DDoS Flood</td>
+                            <td><span class="badge badge-micro">Micro</span></td>
+                            <td>Immediate packet-rate spike detected at header/flag level</td>
+                        </tr>
+                        <tr>
+                            <td>&#128137; SQL Injection</td>
+                            <td><span class="badge badge-micro">Micro</span></td>
+                            <td>Payload entropy anomaly in backward packet bytes</td>
+                        </tr>
+                        <tr>
+                            <td>&#128293; SYN Flood</td>
+                            <td><span class="badge badge-micro">Micro</span></td>
+                            <td>TCP SYN flag burst without ACK completion</td>
+                        </tr>
+                        <tr>
+                            <td>&#128269; Port Scan</td>
+                            <td><span class="badge badge-meso">Meso</span></td>
+                            <td>Multi-port sweep visible in flow-level window</td>
+                        </tr>
+                        <tr>
+                            <td>&#128274; Fast Brute Force</td>
+                            <td><span class="badge badge-meso">Meso</span></td>
+                            <td>Repeated auth failures in session duration</td>
+                        </tr>
+                        <tr>
+                            <td>&#128373; Slow Brute Force</td>
+                            <td><span class="badge badge-macro">Macro</span></td>
+                            <td>Low-rate failed logins over hours &#8212; invisible to micro/meso</td>
+                        </tr>
+                        <tr>
+                            <td>&#128225; Botnet C2 Beacon</td>
+                            <td><span class="badge badge-macro">Macro</span></td>
+                            <td>Periodic heartbeat detected via IAT regularity across hours</td>
+                        </tr>
+                        <tr>
+                            <td>&#127760; Lateral Movement</td>
+                            <td><span class="badge badge-macro">Macro</span></td>
+                            <td>Cross-subnet hop chain visible in long-term temporal history</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Simple Example -->
+            <div class="panel">
+                <h2>Simple Example: Catching a Stealthy Brute Force</h2>
+                <div class="why-grid" style="margin-top: 14px;">
+                    <div class="why-card bad" style="padding: 18px;">
+                        <h3 style="color: #ff4d6a; font-size: 12px;">Traditional AI sees each row alone:</h3>
+                        <ul class="why-list">
+                            <li>8:00 AM &#8212; 1 login attempt, 64 bytes, 0.02s &#8594; "Normal"</li>
+                            <li>8:30 AM &#8212; 1 login attempt, 64 bytes, 0.02s &#8594; "Normal"</li>
+                            <li>9:00 AM &#8212; 1 login attempt, 64 bytes, 0.02s &#8594; "Normal"</li>
+                            <li>... repeats 48 times over 24 hours &#8594; ALL marked "Normal"</li>
+                            <li>Attacker guesses password by midnight. Zero alerts raised.</li>
+                        </ul>
+                    </div>
+                    <div class="why-card good" style="padding: 18px;">
+                        <h3 style="color: #6ea8fe; font-size: 12px;">GrNN Macro Granule groups 4 hours of timing data:</h3>
+                        <ul class="why-list">
+                            <li>Micro Granule: Each packet looks clean (normal flags, normal size)</li>
+                            <li>Meso Granule: Each flow session is short and clean</li>
+                            <li>Macro Granule: "Same IP failed auth 8 times at exact 30-min intervals across 4 hours"</li>
+                            <li>Dominant: Macro (72%) &#8594; Stealth Brute Force detected</li>
+                            <li>Alert raised with full granule attribution breakdown</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             TAB 2: ANALYZE — Upload CSV for comparison
+             ═══════════════════════════════════════════════════════ -->
+        <div class="tab-content" id="tab-analyze">
+            <div class="upload-row">
+                <div class="panel">
+                    <h2>Upload Dataset for Dual Analysis</h2>
+                    <form action="{% url 'grnn_detect' %}" method="POST" enctype="multipart/form-data" id="grnnForm">
+                        {% csrf_token %}
+                        <div class="drop-zone" id="grnnDropZone">
+                            <div class="drop-icon">&#128194;</div>
+                            <div class="drop-text">Click or drag a CSV file here</div>
+                            <div class="drop-hint">Runs both Traditional AI and GrNN side by side</div>
+                        </div>
+                        <input type="file" name="dataset" accept=".csv" required class="file-input-hidden" id="grnnFileInput">
+                        <div class="selected-file" id="grnnSelectedFile"></div>
+                        <button type="submit" class="detect-btn" id="grnnDetectBtn">&#128270; Run Granular Comparison</button>
+                    </form>
+                    <div class="processing-bar" id="grnnPbar">
+                        <div class="pbar-track"><div class="pbar-fill" id="grnnPbarFill"></div></div>
+                        <div class="pbar-label" id="grnnPbarLabel">Preparing granular analysis...</div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>&#128218; What Will Happen</h2>
+                    <div style="color: rgba(232, 213, 234, 0.65); font-size: 14px; line-height: 1.8;">
+                        <p style="margin-bottom: 14px;">When you upload a network traffic CSV, the system will:</p>
+                        <p><strong style="color: #ff4d6a;">1. Traditional Model</strong> &#8212; Classify each row using the standard flat Random Forest / ML classifier (all features treated equally at one scale).</p>
+                        <p style="margin-top: 10px;"><strong style="color: #6ea8fe;">2. GrNN Model</strong> &#8212; Split the same features into 3 granules (Micro: 31 features, Meso: 25 features, Macro: 22 features), process each through dedicated sub-networks, and produce attention-weighted predictions with granule attribution.</p>
+                        <p style="margin-top: 10px;"><strong style="color: #c084fc;">3. Compare</strong> &#8212; Show side-by-side results revealing which attacks the traditional model missed or misclassified, and which granule level caught them in GrNN.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             TAB 3: RESULTS — Side-by-side comparison
+             ═══════════════════════════════════════════════════════ -->
+        {% if has_results %}
+        <div class="tab-content" id="tab-results">
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Total Flows</div>
+                    <div class="stat-value">{{ total }}</div>
+                    <div class="stat-sub">packets analyzed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Traditional Threats</div>
+                    <div class="stat-value">{{ trad_attacks }}</div>
+                    <div class="stat-sub">flat single-scale</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Micro Fires</div>
+                    <div class="stat-value" id="st-micro">0</div>
+                    <div class="stat-sub">DDoS &#183; SQLi &#183; SYN</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Meso Fires</div>
+                    <div class="stat-value" id="st-meso">0</div>
+                    <div class="stat-sub">Scan &#183; Brute Force</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Macro Fires</div>
+                    <div class="stat-value" id="st-macro">0</div>
+                    <div class="stat-sub">APT &#183; Botnet &#183; Beacon</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="panel">
+                    <h3>Traditional Model</h3>
+                    <div class="chart-wrap"><canvas id="chartTrad"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>GrNN Model</h3>
+                    <div class="chart-wrap"><canvas id="chartGrnn"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3>Granule Activation</h3>
+                    <div class="chart-wrap"><canvas id="chartGranule"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Alpha stacked bar -->
+            <div class="panel">
+                <h3>Granule Attribution per Flow (&#945; Weights)</h3>
+                <div style="height: 200px;"><canvas id="chartAlpha"></canvas></div>
+            </div>
+
+            <!-- Ablation Study -->
+            <div class="panel">
+                <h2>&#9879; Ablation Study &#8212; What Happens When a Granule is Disabled?</h2>
+                <p style="color: rgba(232,213,234,0.5); font-size: 13px; margin-bottom: 16px;">
+                    Each card shows what happens if that granule is completely removed from the network. This proves each granule is essential, not redundant.
+                </p>
+                <div class="ablation-grid" id="ablationGrid"></div>
+            </div>
+
+            <!-- Per-Attack Granule Fingerprints -->
+            <div class="panel">
+                <h2>&#128270; Per-Attack Granule Fingerprints</h2>
+                <p style="color: rgba(232,213,234,0.5); font-size: 13px; margin-bottom: 16px;">
+                    Each attack type has a unique granule signature. The radar chart shows the average &#945; weights &#8212; revealing which scale naturally detects that attack.
+                </p>
+                <div class="radar-grid" id="radarGrid"></div>
+            </div>
+
+            <!-- Side-by-side comparison table -->
+            <div class="panel">
+                <h2>Flow-by-Flow Comparison</h2>
+                <div class="tab-row" style="margin-bottom: 14px;">
+                    <button class="tab-btn active" onclick="filterComp('all', this)">All</button>
+                    <button class="tab-btn" onclick="filterComp('attack', this)">Attacks Only</button>
+                    <button class="tab-btn" onclick="filterComp('micro', this)">Micro</button>
+                    <button class="tab-btn" onclick="filterComp('meso', this)">Meso</button>
+                    <button class="tab-btn" onclick="filterComp('macro', this)">Macro</button>
+                </div>
+                <div class="comparison-table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Flow</th>
+                                <th>Trad. Label</th>
+                                <th>GrNN Label</th>
+                                <th>Confidence</th>
+                                <th>Granule</th>
+                                <th>&#945; Micro</th>
+                                <th>&#945; Meso</th>
+                                <th>&#945; Macro</th>
+                                <th>Attribution</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+    // ═══ Tab switching ═══
+    function switchTab(name, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        var el = document.getElementById('tab-' + name);
+        if (el) el.classList.add('active');
+        btn.classList.add('active');
+    }
+
+    // ═══ Upload interactions ═══
+    var dz = document.getElementById('grnnDropZone');
+    var fi = document.getElementById('grnnFileInput');
+    if (dz && fi) {
+        dz.addEventListener('click', function() { fi.click(); });
+        dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('dragover'); });
+        dz.addEventListener('dragleave', function() { dz.classList.remove('dragover'); });
+        dz.addEventListener('drop', function(e) {
+            e.preventDefault(); dz.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) { fi.files = e.dataTransfer.files; showFile(); }
+        });
+        fi.addEventListener('change', showFile);
+    }
+    function showFile() {
+        if (fi.files.length > 0) {
+            var sf = document.getElementById('grnnSelectedFile');
+            sf.style.display = 'block';
+            sf.textContent = '📄 ' + fi.files[0].name + ' (' + (fi.files[0].size / 1024).toFixed(1) + ' KB)';
+        }
+    }
+
+    // ═══ Form submit progress ═══
+    var form = document.getElementById('grnnForm');
+    if (form) {
+        form.addEventListener('submit', function() {
+            var bar = document.getElementById('grnnPbar');
+            var fill = document.getElementById('grnnPbarFill');
+            var label = document.getElementById('grnnPbarLabel');
+            bar.classList.add('show');
+            var steps = [
+                {pct:10, txt:'Reading dataset...'},
+                {pct:25, txt:'Splitting features into 3 granules...'},
+                {pct:40, txt:'Running traditional classifier...'},
+                {pct:55, txt:'Running Micro-Granule subnet...'},
+                {pct:68, txt:'Running Meso-Granule subnet...'},
+                {pct:80, txt:'Running Macro-Granule subnet...'},
+                {pct:90, txt:'Cross-granule attention fusion...'},
+                {pct:95, txt:'Generating comparison report...'},
+            ];
+            var i = 0;
+            var iv = setInterval(function() {
+                if (i < steps.length) { fill.style.width = steps[i].pct + '%'; label.textContent = steps[i].txt; i++; }
+                else clearInterval(iv);
+            }, 500);
+        });
+    }
+
+    // ═══ Results rendering ═══
+    {% if has_results %}
+    var tradData = JSON.parse('{{ trad_counts_json|escapejs }}');
+    var grnnData = JSON.parse('{{ grnn_counts_json|escapejs }}');
+    var granuleData = JSON.parse('{{ granule_counts_json|escapejs }}');
+    var tradResults = JSON.parse('{{ traditional_results_json|escapejs }}');
+    var grnnResults = JSON.parse('{{ grnn_results_json|escapejs }}');
+
+    var COLORS = {
+        'Normal':'rgba(108, 200, 108, 0.6)', 'DDoS':'rgba(255, 20, 147, 0.6)',
+        'DoS':'rgba(255, 77, 106, 0.6)', 'Port Scan':'rgba(255, 170, 68, 0.6)',
+        'Brute Force':'rgba(200, 80, 160, 0.6)', 'SQL Injection':'rgba(255, 99, 132, 0.6)',
+        'XSS Attack':'rgba(255, 150, 50, 0.6)', 'Malware':'rgba(180, 100, 200, 0.6)',
+        'MITM Attack':'rgba(100, 180, 255, 0.6)', 'Botnet':'rgba(192, 132, 252, 0.6)',
+        'Unknown':'rgba(150, 150, 150, 0.6)'
+    };
+    var G_COLORS = { Micro: 'rgba(110, 168, 254, 0.7)', Meso: 'rgba(255, 170, 68, 0.7)', Macro: 'rgba(192, 132, 252, 0.7)' };
+
+    // Stat updates
+    document.getElementById('st-micro').textContent = granuleData.Micro || 0;
+    document.getElementById('st-meso').textContent = granuleData.Meso || 0;
+    document.getElementById('st-macro').textContent = granuleData.Macro || 0;
+
+    // Auto-switch to results tab
+    setTimeout(function() {
+        var btn = document.getElementById('resultsTabBtn');
+        if (btn) switchTab('results', btn);
+    }, 300);
+
+    // Traditional doughnut
+    new Chart(document.getElementById('chartTrad').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(tradData),
+            datasets: [{ data: Object.values(tradData), backgroundColor: Object.keys(tradData).map(k => COLORS[k]||'#888'), borderColor: '#0d0a10', borderWidth: 2 }]
+        },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'rgba(255,105,180,0.5)', font:{size:11,family:'Rajdhani'}, padding:10, usePointStyle:true }}}}
+    });
+
+    // GrNN doughnut
+    new Chart(document.getElementById('chartGrnn').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(grnnData),
+            datasets: [{ data: Object.values(grnnData), backgroundColor: Object.keys(grnnData).map(k => COLORS[k]||'#888'), borderColor: '#0d0a10', borderWidth: 2 }]
+        },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'rgba(255,105,180,0.5)', font:{size:11,family:'Rajdhani'}, padding:10, usePointStyle:true }}}}
+    });
+
+    // Granule bar chart
+    new Chart(document.getElementById('chartGranule').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: ['Micro', 'Meso', 'Macro'],
+            datasets: [{ data: [granuleData.Micro||0, granuleData.Meso||0, granuleData.Macro||0], backgroundColor: [G_COLORS.Micro, G_COLORS.Meso, G_COLORS.Macro], borderRadius: 6, borderSkipped: false }]
+        },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }}, scales:{ x:{grid:{display:false}, ticks:{color:'rgba(255,105,180,0.5)'}}, y:{grid:{color:'rgba(255,105,180,0.05)'}, ticks:{color:'rgba(255,105,180,0.5)'}} }}
+    });
+
+    // Alpha stacked bar
+    var alphaRows = grnnResults.slice(0, 60);
+    new Chart(document.getElementById('chartAlpha').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: alphaRows.map(function(_, i) { return 'F'+(i+1); }),
+            datasets: [
+                { label:'Micro', data:alphaRows.map(r=>r.alpha_micro||0), backgroundColor:G_COLORS.Micro, borderRadius:3 },
+                { label:'Meso', data:alphaRows.map(r=>r.alpha_meso||0), backgroundColor:G_COLORS.Meso, borderRadius:3 },
+                { label:'Macro', data:alphaRows.map(r=>r.alpha_macro||0), backgroundColor:G_COLORS.Macro, borderRadius:3 },
+            ]
+        },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ labels:{ color:'rgba(255,105,180,0.5)', font:{size:11,family:'Rajdhani'}, padding:14 }}},
+            scales:{
+                x:{ stacked:true, grid:{display:false}, ticks:{color:'rgba(255,105,180,0.4)', maxTicksLimit:20} },
+                y:{ stacked:true, max:100, grid:{color:'rgba(255,105,180,0.05)'}, ticks:{color:'rgba(255,105,180,0.4)', callback:function(v){return v+'%'}} }
+            }
+        }
+    });
+
+    // Comparison table
+    var compFilter = 'all';
+    function renderCompTable() {
+        var tbody = document.getElementById('compBody');
+        var rows = [];
+        for (var i = 0; i < grnnResults.length; i++) {
+            var g = grnnResults[i];
+            var t = tradResults[i] || {};
+            if (compFilter === 'attack' && !g.is_attack) continue;
+            if (compFilter === 'micro' && g.dominant_granule !== 'Micro') continue;
+            if (compFilter === 'meso' && g.dominant_granule !== 'Meso') continue;
+            if (compFilter === 'macro' && g.dominant_granule !== 'Macro') continue;
+
+            var tBadge = t.label === 'Normal' ? 'badge-normal' : 'badge-attack';
+            var gBadge = g.label === 'Normal' ? 'badge-normal' : 'badge-attack';
+            var gGranule = 'badge-' + (g.dominant_granule||'').toLowerCase();
+            var mi = g.alpha_micro||0, ms = g.alpha_meso||0, mc = g.alpha_macro||0;
+
+            rows.push(
+                '<tr>' +
+                '<td style="font-size:12px; color:rgba(255,105,180,0.4);">#' + (g.row+1) + '</td>' +
+                '<td><span class="badge '+tBadge+'">' + (t.label||'-') + '</span></td>' +
+                '<td><span class="badge '+gBadge+'">' + g.label + '</span></td>' +
+                '<td><span class="conf" style="color:#ff69b4;">' + g.confidence + '%</span></td>' +
+                '<td><span class="badge '+gGranule+'">' + g.dominant_granule + '</span></td>' +
+                '<td style="font-size:12px;">' + mi + '%</td>' +
+                '<td style="font-size:12px;">' + ms + '%</td>' +
+                '<td style="font-size:12px;">' + mc + '%</td>' +
+                '<td><div class="alpha-bars">' +
+                    '<div class="alpha-bar bar-micro" style="width:'+mi+'%"></div>' +
+                    '<div class="alpha-bar bar-meso" style="width:'+ms+'%"></div>' +
+                    '<div class="alpha-bar bar-macro" style="width:'+mc+'%"></div>' +
+                '</div></td>' +
+                '</tr>'
+            );
+        }
+        tbody.innerHTML = rows.join('') || '<tr><td colspan="9" style="text-align:center;color:rgba(255,105,180,0.3);padding:20px;">No matching flows.</td></tr>';
+    }
+    function filterComp(f, btn) {
+        compFilter = f;
+        document.querySelectorAll('#tab-results .tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        renderCompTable();
+    }
+    renderCompTable();
+
+    // ═══ Ablation Study Rendering ═══
+    var ablationData = JSON.parse('{{ ablation_json|escapejs }}');
+    var ablGrid = document.getElementById('ablationGrid');
+    var gLabels = {
+        Micro: {icon:'&#9889;', color:'#6ea8fe', cls:'disabled-micro', fillCls:'micro-fill', desc:'DDoS, SQLi, SYN Flood detection collapses'},
+        Meso:  {icon:'&#128260;', color:'#ffaa44', cls:'disabled-meso', fillCls:'meso-fill', desc:'Port Scan, Brute Force detection collapses'},
+        Macro: {icon:'&#127760;', color:'#c084fc', cls:'disabled-macro', fillCls:'macro-fill', desc:'Slow APT, Botnet C2 Beacon detection collapses'}
+    };
+    ['Micro','Meso','Macro'].forEach(function(g) {
+        var d = ablationData[g] || {accuracy:100, drop:0, missed:0, detected:0};
+        var info = gLabels[g];
+        var severity = d.drop > 15 ? 'severe' : (d.drop > 5 ? 'moderate' : 'mild');
+        var card = document.createElement('div');
+        card.className = 'ablation-card ' + info.cls;
+        card.innerHTML =
+            '<div class="abl-title">' + info.icon + ' Without ' + g + ' Granule</div>' +
+            '<div class="abl-subtitle">If ' + g.toLowerCase() + '-level features are removed</div>' +
+            '<div class="abl-accuracy" style="color:' + info.color + ';">' + d.accuracy + '%</div>' +
+            '<div class="abl-drop ' + severity + '">&#9660; ' + d.drop + '% accuracy drop</div>' +
+            '<div class="abl-bar-bg"><div class="abl-bar-fill ' + info.fillCls + '" style="width:' + d.accuracy + '%"></div></div>' +
+            '<div class="abl-detail">' + d.missed + ' attacks missed out of ' + (d.missed + d.detected) + '<br/>' + info.desc + '</div>';
+        ablGrid.appendChild(card);
+    });
+
+    // ═══ Per-Attack Granule Fingerprint Radar Charts ═══
+    var fpData = JSON.parse('{{ fingerprint_json|escapejs }}');
+    var radarGrid = document.getElementById('radarGrid');
+    var attackIcons = {
+        'Normal':'&#128994;','DDoS':'&#9889;','DoS':'&#128293;','Port Scan':'&#128269;',
+        'Brute Force':'&#128274;','SQL Injection':'&#128137;','XSS Attack':'&#128165;',
+        'Malware':'&#128128;','MITM Attack':'&#128373;','Botnet':'&#128225;','Unknown':'&#10067;'
+    };
+    Object.keys(fpData).forEach(function(atk) {
+        var fp = fpData[atk];
+        var card = document.createElement('div');
+        card.className = 'radar-card';
+        var canvasId = 'radar_' + atk.replace(/[^a-zA-Z]/g, '');
+        card.innerHTML =
+            '<div class="radar-label">' + (attackIcons[atk]||'') + ' ' + atk + '</div>' +
+            '<div class="radar-count">' + fp.count + ' flows detected</div>' +
+            '<div class="radar-wrap"><canvas id="' + canvasId + '"></canvas></div>';
+        radarGrid.appendChild(card);
+
+        // Build radar chart after DOM is ready
+        setTimeout(function() {
+            var ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            new Chart(ctx.getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: ['Micro', 'Meso', 'Macro'],
+                    datasets: [{
+                        data: [fp.micro, fp.meso, fp.macro],
+                        backgroundColor: 'rgba(255, 105, 180, 0.12)',
+                        borderColor: '#ff69b4',
+                        borderWidth: 2,
+                        pointBackgroundColor: ['#6ea8fe', '#ffaa44', '#c084fc'],
+                        pointBorderColor: ['#6ea8fe', '#ffaa44', '#c084fc'],
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        r: {
+                            min: 0, max: 80,
+                            ticks: { color: 'rgba(255,105,180,0.4)', backdropColor: 'transparent', font: { size: 10 } },
+                            grid: { color: 'rgba(255,105,180,0.08)' },
+                            pointLabels: { color: 'rgba(255,105,180,0.6)', font: { size: 11, family: 'Rajdhani', weight: 600 } },
+                            angleLines: { color: 'rgba(255,105,180,0.08)' }
+                        }
+                    }
+                }
+            });
+        }, 100);
+    });
+    {% endif %}
+    </script>
+</body>
+</html>

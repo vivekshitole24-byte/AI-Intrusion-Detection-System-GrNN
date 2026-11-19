@@ -1,0 +1,98 @@
+/* 🔥 Cyberpunk Pink Theme for Django Admin */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
+
+:root {
+    --cyber-bg: #140410; /* Deep Pink-Black Background */
+    --cyber-pink-light: #ff66b2; /* Neon Pink */
+    --cyber-pink-dark: #dd3687; /* Darker Pink */
+    --cyber-pink-glow: #ff1493; /* Pink Glow */
+    --cyber-text: #dc46a5; /* Light Pink Text */
+}
+
+body {
+    background-color: var(--cyber-bg) !important;
+    color: var(--cyber-text) !important;
+    font-family: "Orbitron", sans-serif !important;
+}
+
+/* Change the main header */
+#header {
+    background: var(--cyber-pink-dark) !important;
+    color: var(--cyber-text) !important;
+    text-shadow: 0 0 10px var(--cyber-pink-glow);
+}
+
+/* Sidebar */
+#nav-sidebar {
+    background: rgba(255, 20, 147, 0.2) !important;
+    border-right: 2px solid var(--cyber-pink-light) !important;
+}
+
+/* Links */
+a {
+    color: var(--cyber-pink-light) !important;
+    text-shadow: 0 0 10px var(--cyber-pink-glow);
+}
+
+a:hover {
+    color: var(--cyber-pink-dark) !important;
+    text-shadow: 0 0 15px var(--cyber-pink-glow);
+}
+
+/* Buttons */
+button, input[type="submit"], .button {
+    background: var(--cyber-pink-dark) !important;
+    color: var(--cyber-text) !important;
+    border: 2px solid var(--cyber-pink-light) !important;
+    font-family: "Orbitron", sans-serif !important;
+    box-shadow: 0 0 15px var(--cyber-pink-glow);
+}
+
+button:hover, input[type="submit"]:hover {
+    background: var(--cyber-pink-light) !important;
+    box-shadow: 0 0 20px var(--cyber-pink-glow);
+}
+
+/* Sidebar Sections */
+.module caption {
+    background-color: var(--cyber-pink-dark) !important;
+    color: var(--cyber-text) !important;
+    text-shadow: 0 0 10px var(--cyber-pink-glow);
+}
+
+/* Tables & Entries */
+.module th, .module td {
+    background-color: rgba(255, 20, 147, 0.1) !important;
+    color: var(--cyber-text) !important;
+}
+
+/* Logout Button */
+.logout {
+    background: var(--cyber-pink-light) !important;
+    border: 2px solid var(--cyber-pink-dark) !important;
+    text-shadow: 0 0 10px var(--cyber-pink-glow);
+}
+
+/* Cyberpunk Login Page */
+.cyberpunk-login, .cyberpunk-logout {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.cyberpunk-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: var(--cyber-pink-dark);
+    color: var(--cyber-text);
+    text-transform: uppercase;
+    font-family: "Orbitron", sans-serif;
+    box-shadow: 0 0 10px var(--cyber-pink-light);
+    border: none;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.cyberpunk-btn:hover {
+    background: var(--cyber-pink-light);
+    box-shadow: 0 0 20px var(--cyber-pink-glow);
+}

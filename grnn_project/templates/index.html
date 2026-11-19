@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}GrNN — Granular Neural Network Threat Analyzer{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div class="hero-inner">
+
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      Academic Research Project · Network Security
+    </div>
+
+    <h1 class="hero-title">
+      Network Intrusion Detection<br/>
+      <span class="title-accent">via Granular Neural Networks</span>
+    </h1>
+
+    <p class="hero-sub">
+      Unlike conventional AI models that inspect traffic at a single, fixed scale, GrNN processes
+      network flows simultaneously across <strong>three information granules</strong> — packet dynamics,
+      session behavior, and temporal patterns — catching attacks from DDoS floods to
+      stealthy multi-hour intrusions that standard classifiers miss entirely.
+    </p>
+
+    <div class="hero-cta">
+      <a href="/dashboard" class="btn-primary">View Live Monitor</a>
+      <a href="/analyze" class="btn-secondary">Analyze a Dataset</a>
+    </div>
+  </div>
+
+  <!-- Visual Architecture Diagram -->
+  <div class="arch-diagram">
+    <div class="arch-stream">
+      <div class="arch-label-top">Raw Network Traffic</div>
+      <div class="arch-arrow-down">↓</div>
+    </div>
+
+    <div class="granule-row">
+      <div class="granule-card micro" id="gcard-micro">
+        <div class="gc-icon">⚡</div>
+        <div class="gc-title">Micro Granule</div>
+        <div class="gc-desc">Packet-level features<br/>Flags · Headers · Sizes</div>
+        <div class="gc-catches">Catches: DDoS · SQLi · SYN Flood</div>
+      </div>
+      <div class="granule-card meso" id="gcard-meso">
+        <div class="gc-icon">🔁</div>
+        <div class="gc-title">Meso Granule</div>
+        <div class="gc-desc">Flow/Session features<br/>Rates · Volumes · Ratios</div>
+        <div class="gc-catches">Catches: Port Scan · Brute Force</div>
+      </div>
+      <div class="granule-card macro" id="gcard-macro">
+        <div class="gc-icon">🌐</div>
+        <div class="gc-title">Macro Granule</div>
+        <div class="gc-desc">Temporal IAT patterns<br/>Active · Idle · Periodicity</div>
+        <div class="gc-catches">Catches: APT · C2 Beacon · Lateral Move</div>
+      </div>
+    </div>
+
+    <div class="fusion-row">
+      <div class="fusion-card">
+        <div class="gc-icon">🔀</div>
+        <div class="gc-title">Cross-Granule Attention Fusion</div>
+        <div class="gc-desc">Dynamic α weights • α₁ + α₂ + α₃ = 1</div>
+      </div>
+    </div>
+
+    <div class="output-row">
+      <div class="output-badge attack">🚨 DDoS — Micro 78%</div>
+      <div class="output-badge scan">🔍 Port Scan — Meso 65%</div>
+      <div class="output-badge slow">🕵️ APT — Macro 81%</div>
+    </div>
+  </div>
+</div>
+
+<!-- Why Granulation Section -->
+<section class="section">
+  <div class="section-inner">
+    <h2 class="section-title">Why Granulation Changes Everything</h2>
+    <p class="section-sub">Standard neural networks have a fundamental flaw — they inspect network traffic at a single, fixed scale.</p>
+
+    <div class="comparison-grid">
+      <div class="compare-card bad">
+        <div class="cc-header">
+          <span class="cc-icon">❌</span>
+          <span class="cc-label">Standard AI / ML Model</span>
+        </div>
+        <ul class="cc-list">
+          <li>Inspects each packet in isolation — no temporal memory</li>
+          <li>Misses slow brute-force attacks spread over hours</li>
+          <li>Drowns minority attacks in majority-class noise</li>
+          <li>Cannot explain which feature level triggered the alert</li>
+          <li>Runs heavy inference on every single packet — computationally expensive</li>
+        </ul>
+      </div>
+      <div class="compare-card good">
+        <div class="cc-header">
+          <span class="cc-icon">✅</span>
+          <span class="cc-label">Granular Neural Network (GrNN)</span>
+        </div>
+        <ul class="cc-list">
+          <li>Processes traffic at micro, meso, and macro scale simultaneously</li>
+          <li>Macro granule catches APT beaconing over hours of traffic history</li>
+          <li>Class-weighted attention isolates rare attack patterns from noise</li>
+          <li>Reports exactly which granule flagged the threat and with what weight</li>
+          <li>Micro-subnet acts as fast early-exit gate — 70% compute reduction</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Attack Coverage Section -->
+<section class="section alt-bg">
+  <div class="section-inner">
+    <h2 class="section-title">Attack Coverage Across All Three Granules</h2>
+    <div class="attack-grid">
+      <div class="attack-row header-row">
+        <span>Attack Type</span><span>Granule Level</span><span>Why It Works</span>
+      </div>
+      <div class="attack-row"><span>⚡ DDoS Flood</span><span class="tag micro">Micro</span><span>Immediate packet-rate spike at header level</span></div>
+      <div class="attack-row"><span>💉 SQL Injection</span><span class="tag micro">Micro</span><span>Payload entropy anomaly in backward bytes</span></div>
+      <div class="attack-row"><span>🔥 SYN Flood</span><span class="tag micro">Micro</span><span>TCP SYN flag burst without ACK completion</span></div>
+      <div class="attack-row"><span>🔍 Port Scan</span><span class="tag meso">Meso</span><span>Multi-port sweep visible in 5-min window</span></div>
+      <div class="attack-row"><span>🔐 Fast Brute Force</span><span class="tag meso">Meso</span><span>Repeated auth failures in session duration</span></div>
+      <div class="attack-row"><span>🕵️ Slow Brute Force</span><span class="tag macro">Macro</span><span>Low-rate failed logins over hours — invisible to micro/meso</span></div>
+      <div class="attack-row"><span>📡 C2 Beacon</span><span class="tag macro">Macro</span><span>Periodic heartbeat detected via IAT regularity</span></div>
+      <div class="attack-row"><span>🌐 Lateral Movement</span><span class="tag macro">Macro</span><span>Cross-subnet hop chain visible in long-term history</span></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Animate granule cards on hover
+  document.querySelectorAll('.granule-card').forEach(card => {
+    card.addEventListener('mouseenter', () => card.classList.add('pulsing'));
+    card.addEventListener('mouseleave', () => card.classList.remove('pulsing'));
+  });
+
+  // Cycle output badges
+  const badges = document.querySelectorAll('.output-badge');
+  let bi = 0;
+  setInterval(() => {
+    badges.forEach(b => b.classList.remove('active-badge'));
+    badges[bi % badges.length].classList.add('active-badge');
+    bi++;
+  }, 1800);
+</script>
+{% endblock %}
+

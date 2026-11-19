@@ -1,0 +1,5 @@
+Timestamp,Attack Type,Severity
+2025-03-10 15:00,DDoS,High
+2025-03-10 14:55,Port Scan,Medium
+2025-03-10 14:50,SQL Injection,Critical
+2025-03-10 14:45,Brute Force,High

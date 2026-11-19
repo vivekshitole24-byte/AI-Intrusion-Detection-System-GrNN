@@ -1,0 +1,42 @@
+# Python virtual environments & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Django specifics
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/ids_web/db.sqlite3
+media/
+/ids_web/media/
+/ids_web/ids_web/media/
+*.csv
+
+# Very large files & archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+ids_web.zip
+backup_dataset.csv
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.condarc
+.bash_history
+.emulator_console_auth_token
+.lesshst

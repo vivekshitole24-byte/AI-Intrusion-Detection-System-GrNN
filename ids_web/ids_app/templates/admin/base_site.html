@@ -1,0 +1,66 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link rel="stylesheet" type="text/css" href="{% static 'ids_app/css/admin_theme.css' %}">
+<style>
+    /* 🔥 Cyberpunk Admin Custom Branding */
+    #header {
+        background: linear-gradient(90deg, #dd3687, #ff66b2);
+        padding: 20px;
+        text-align: center;
+        border-bottom: 3px solid #ff1493;
+    }
+
+    #header h1 {
+        font-size: 28px;
+        color: #0e0404;
+        text-shadow: 0 0 15px #ff007f, 0 0 25px #ff1493;
+        font-family: "Orbitron", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    /* 🚀 Animated Branding */
+    @keyframes neon-flicker {
+        0% { text-shadow: 0 0 10px #ff007f, 0 0 20px #ff1493; }
+        50% { text-shadow: 0 0 15px #ff1493, 0 0 30px #ff66b2; }
+        100% { text-shadow: 0 0 10px #ff007f, 0 0 20px #ff1493; }
+    }
+
+    #branding h1 {
+        animation: neon-flicker 1.5s infinite alternate ease-in-out;
+    }
+
+    /* ⚡ Cyberpunk Divider */
+    .cyber-divider {
+        width: 80%;
+        margin: 10px auto;
+        border-bottom: 3px solid #ff1493;
+        box-shadow: 0 0 15px #ff007f;
+    }
+
+    /* 🚀 Logout Button Glow */
+    .logout {
+        background: #ff1493 !important;
+        color: #0e0404 !important;
+        font-weight: bold;
+        text-transform: uppercase;
+        border: 2px solid #dd3687 !important;
+        box-shadow: 0 0 10px #ff66b2;
+    }
+
+    .logout:hover {
+        background: #ff66b2 !important;
+        box-shadow: 0 0 20px #ff1493;
+    }
+
+</style>
+{% endblock %}
+
+{% block branding %}
+<div id="branding">
+    <h1>🔥 Cyberpunk IDS Admin 🔥</h1>
+    <div class="cyber-divider"></div>
+</div>
+{% endblock %}

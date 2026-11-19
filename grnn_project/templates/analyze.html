@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Analyze Dataset — GrNN Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Batch Dataset Analyzer</h1>
+    <p class="page-sub">Upload a CICIDS-format CSV to run granular threat classification across all traffic flows</p>
+  </div>
+</div>
+
+<!-- Upload Section -->
+<div class="upload-section" id="upload-section">
+  <div class="upload-zone" id="drop-zone">
+    <div class="upload-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <p class="upload-label">Drop your CSV here or <span class="upload-link" onclick="document.getElementById('file-input').click()">browse</span></p>
+    <p class="upload-hint">CICIDS format · Max 64 MB · First 2000 rows analyzed</p>
+    <input type="file" id="file-input" accept=".csv" style="display:none"/>
+  </div>
+  <div class="upload-actions">
+    <button class="btn-primary" id="analyze-btn" disabled onclick="startAnalysis()">Analyze</button>
+    <span class="file-name" id="file-name">No file selected</span>
+  </div>
+</div>
+
+<!-- Progress Bar -->
+<div class="progress-wrap" id="progress-wrap" style="display:none">
+  <div class="progress-label">Running granular inference…</div>
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar"></div></div>
+</div>
+
+<!-- Results Section (hidden until analysis runs) -->
+<div id="results-section" style="display:none">
+
+  <!-- Summary Cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total Flows</div>
+      <div class="stat-value" id="r-total">—</div>
+    </div>
+    <div class="stat-card danger">
+      <div class="stat-label">Threats Found</div>
+      <div class="stat-value" id="r-attacks">—</div>
+    </div>
+    <div class="stat-card micro-card">
+      <div class="stat-label">Micro-Granule Detections</div>
+      <div class="stat-value" id="r-micro">—</div>
+      <div class="stat-sub">DDoS · SQLi · SYN Flood</div>
+    </div>
+    <div class="stat-card meso-card">
+      <div class="stat-label">Meso-Granule Detections</div>
+      <div class="stat-value" id="r-meso">—</div>
+      <div class="stat-sub">Port Scan · Brute Force</div>
+    </div>
+    <div class="stat-card macro-card">
+      <div class="stat-label">Macro-Granule Detections</div>
+      <div class="stat-value" id="r-macro">—</div>
+      <div class="stat-sub">APT · Botnet · Beacon</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Attack Label Distribution</span>
+      </div>
+      <div class="chart-wrap"><canvas id="r-chartLabels"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Granule Activation Share</span>
+      </div>
+      <div class="chart-wrap"><canvas id="r-chartGranules"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <span class="chart-title">Granule α Weights — First 60 Flows</span>
+        <span class="chart-badge">Multi-scale attribution</span>
+      </div>
+      <div class="chart-wrap"><canvas id="r-chartAlpha"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Granule Explanation Cards -->
+  <div class="explanation-section">
+    <h2 class="section-title">What Each Granule Detected</h2>
+    <div class="granule-explanation-row" id="granule-explain-row">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Results Table -->
+  <div class="feed-section">
+    <div class="feed-header">
+      <span class="feed-title">Flow-Level Results</span>
+      <div class="feed-filters">
+        <button class="filter-btn active" onclick="filterResults('all', this)">All</button>
+        <button class="filter-btn" onclick="filterResults('attack', this)">Attacks Only</button>
+        <button class="filter-btn" onclick="filterResults('benign', this)">Benign Only</button>
+      </div>
+    </div>
+    <div class="feed-table-wrap">
+      <table class="feed-table">
+        <thead>
+          <tr>
+            <th>Flow #</th>
+            <th>Classification</th>
+            <th>Confidence</th>
+            <th>Dominant Granule</th>
+            <th>α Micro</th>
+            <th>α Meso</th>
+            <th>α Macro</th>
+            <th>Attribution</th>
+          </tr>
+        </thead>
+        <tbody id="r-feed-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const COLORS = {
+  'Benign':'#4ade80','DDoS':'#f87171','DoS':'#fb923c',
+  'Port Scan':'#fbbf24','Brute Force':'#a78bfa',
+  'Web Attack':'#60a5fa','Botnet':'#f472b6','Infiltration':'#34d399'
+};
+const G_COLORS = { Micro: '#3b82f6', Meso: '#f59e0b', Macro: '#8b5cf6' };
+
+let allResults = [];
+let resultFilter = 'all';
+let selectedFile = null;
+
+// Drop zone
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) setFile(file);
+});
+fi.addEventListener('change', () => { if (fi.files[0]) setFile(fi.files[0]); });
+
+function setFile(file) {
+  selectedFile = file;
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('analyze-btn').disabled = false;
+  dz.classList.add('has-file');
+}
+
+async function startAnalysis() {
+  if (!selectedFile) return;
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('results-section').style.display = 'none';
+  animateProgress();
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const res  = await fetch('/api/analyze', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.error) { alert('Error: ' + data.error); return; }
+    showResults(data);
+  } catch(e) {
+    alert('Analysis failed: ' + e.message);
+  } finally {
+    document.getElementById('progress-wrap').style.display = 'none';
+  }
+}
+
+function animateProgress() {
+  let w = 0;
+  const bar = document.getElementById('progress-bar');
+  const iv = setInterval(() => {
+    w = Math.min(w + Math.random() * 8, 90);
+    bar.style.width = w + '%';
+    if (w >= 90) clearInterval(iv);
+  }, 120);
+}
+
+function showResults(data) {
+  allResults = data.results || [];
+  document.getElementById('results-section').style.display = 'block';
+
+  document.getElementById('r-total').textContent   = data.total.toLocaleString();
+  document.getElementById('r-attacks').textContent = data.attack_count.toLocaleString();
+  document.getElementById('r-micro').textContent   = (data.granule_counts?.Micro || 0).toLocaleString();
+  document.getElementById('r-meso').textContent    = (data.granule_counts?.Meso  || 0).toLocaleString();
+  document.getElementById('r-macro').textContent   = (data.granule_counts?.Macro || 0).toLocaleString();
+
+  buildLabelChart(data.label_counts || {});
+  buildGranuleChart(data.granule_counts || {});
+  buildAlphaChart(allResults.slice(0, 60));
+  buildGranuleExplanations(data);
+  renderResultsTable();
+}
+
+function buildLabelChart(counts) {
+  const labels = Object.keys(counts);
+  const values = Object.values(counts);
+  const ctx = document.getElementById('r-chartLabels').getContext('2d');
+  if (window._lblChart) window._lblChart.destroy();
+  window._lblChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: labels.map(l => COLORS[l] || '#94a3b8'), borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color:'#64748b', font:{family:'Inter',size:12}, padding:16 } } }
+    }
+  });
+}
+
+function buildGranuleChart(counts) {
+  const ctx = document.getElementById('r-chartGranules').getContext('2d');
+  if (window._gChart) window._gChart.destroy();
+  window._gChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Micro', 'Meso', 'Macro'],
+      datasets: [{
+        data: [counts.Micro||0, counts.Meso||0, counts.Macro||0],
+        backgroundColor: [G_COLORS.Micro, G_COLORS.Meso, G_COLORS.Macro],
+        borderRadius: 8, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid:{display:false}, ticks:{color:'#64748b',font:{family:'Inter'}} },
+        y: { grid:{color:'#f1f5f9'}, ticks:{color:'#64748b',font:{family:'Inter'}} }
+      }
+    }
+  });
+}
+
+function buildAlphaChart(rows) {
+  const ctx = document.getElementById('r-chartAlpha').getContext('2d');
+  if (window._aChart) window._aChart.destroy();
+  window._aChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map((_, i) => `F${i+1}`),
+      datasets: [
+        { label:'α Micro', data:rows.map(r=>r.alpha_micro||0), backgroundColor:G_COLORS.Micro, borderRadius:4 },
+        { label:'α Meso',  data:rows.map(r=>r.alpha_meso||0),  backgroundColor:G_COLORS.Meso,  borderRadius:4 },
+        { label:'α Macro', data:rows.map(r=>r.alpha_macro||0), backgroundColor:G_COLORS.Macro, borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color:'#64748b', font:{family:'Inter',size:12}, padding:16 } } },
+      scales: {
+        x: { stacked:true, grid:{display:false}, ticks:{color:'#64748b', maxTicksLimit:20} },
+        y: { stacked:true, max:100, grid:{color:'#f1f5f9'}, ticks:{color:'#64748b', callback:v=>v+'%'} }
+      }
+    }
+  });
+}
+
+function buildGranuleExplanations(data) {
+  const gc = data.granule_counts || {};
+  const total = data.total || 1;
+  const gc_keys = ['Micro', 'Meso', 'Macro'];
+  const gc_desc = {
+    Micro: 'Packet-level anomalies — detected from individual TCP flags, header byte patterns, payload entropy, and per-packet size irregularities. Typical triggers: DDoS floods, SYN floods, SQL Injection payloads.',
+    Meso: 'Flow/session-level behavior — detected across 5-minute windows tracking connection rates, directional ratios, port sweeps, and volume spikes. Typical triggers: Port Scans, fast Brute Force attempts, Session Hijacking.',
+    Macro: 'Long-term temporal patterns — detected via inter-arrival time regularity, active/idle periodicity, and cross-session statistical drift. Typical triggers: Slow-and-Low APTs, C2 beaconing, Insider Lateral Movement.',
+  };
+  const gc_icon = { Micro: '⚡', Meso: '🔁', Macro: '🌐' };
+  const gc_color = { Micro: 'micro', Meso: 'meso', Macro: 'macro' };
+
+  const html = gc_keys.map(k => {
+    const count = gc[k] || 0;
+    const pct = ((count / total) * 100).toFixed(1);
+    return `
+      <div class="granule-exp-card ${gc_color[k]}-card">
+        <div class="gec-header">
+          <span class="gec-icon">${gc_icon[k]}</span>
+          <span class="gec-title">${k} Granule</span>
+          <span class="gec-count">${count} fires (${pct}%)</span>
+        </div>
+        <div class="gec-bar-bg"><div class="gec-bar ${gc_color[k]}-bar" style="width:${pct}%"></div></div>
+        <p class="gec-desc">${gc_desc[k]}</p>
+      </div>`;
+  }).join('');
+  document.getElementById('granule-explain-row').innerHTML = html;
+}
+
+function renderResultsTable() {
+  const tbody = document.getElementById('r-feed-body');
+  const rows = [];
+  for (const e of allResults) {
+    if (resultFilter === 'attack' && !e.is_attack) continue;
+    if (resultFilter === 'benign' && e.is_attack)  continue;
+    const mi = e.alpha_micro||0, ms = e.alpha_meso||0, mc = e.alpha_macro||0;
+    const lc = e.is_attack ? 'label-attack' : 'label-benign';
+    const gc = `granule-${(e.dominant_granule||'').toLowerCase()}`;
+    rows.push(`
+      <tr class="${e.is_attack?'row-attack':''}">
+        <td class="td-time">#${e.row+1}</td>
+        <td><span class="label-badge ${lc}">${e.label}</span></td>
+        <td><span class="conf-badge">${e.confidence}%</span></td>
+        <td><span class="granule-badge ${gc}">${e.dominant_granule}</span></td>
+        <td class="td-alpha">${mi}%</td>
+        <td class="td-alpha">${ms}%</td>
+        <td class="td-alpha">${mc}%</td>
+        <td>
+          <div class="alpha-bars">
+            <div class="alpha-bar micro-bar" style="width:${mi}%"></div>
+            <div class="alpha-bar meso-bar"  style="width:${ms}%"></div>
+            <div class="alpha-bar macro-bar" style="width:${mc}%"></div>
+          </div>
+        </td>
+      </tr>`);
+  }
+  tbody.innerHTML = rows.join('') || '<tr><td colspan="8" class="empty-row">No results match the current filter.</td></tr>';
+}
+
+function filterResults(f, btn) {
+  resultFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderResultsTable();
+}
+</script>
+{% endblock %}
+

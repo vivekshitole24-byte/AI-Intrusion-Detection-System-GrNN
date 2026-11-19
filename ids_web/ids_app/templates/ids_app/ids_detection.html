@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Intrusion Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0d0a10;
+            color: #e8d5ea;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Top nav bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 30px;
+            background: rgba(20, 12, 25, 0.95);
+            border-bottom: 1px solid rgba(255, 105, 180, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            color: #ff69b4;
+            text-shadow: 0 0 8px rgba(255, 105, 180, 0.4);
+            letter-spacing: 2px;
+        }
+
+        .topbar-nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        .topbar-nav a {
+            font-family: 'Rajdhani', sans-serif;
+            color: rgba(255, 105, 180, 0.4);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.35s ease;
+            position: relative;
+        }
+
+        .topbar-nav a::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            width: 0;
+            height: 1px;
+            background: #ff69b4;
+            transition: width 0.3s ease, left 0.3s ease;
+        }
+
+        .topbar-nav a:hover {
+            color: #ff69b4;
+            background: rgba(255, 105, 180, 0.08);
+        }
+
+        .topbar-nav a:hover::after {
+            width: 60%;
+            left: 20%;
+        }
+
+        .topbar-nav a.active {
+            color: #ff69b4;
+            background: rgba(255, 105, 180, 0.12);
+        }
+
+        /* Main area */
+        .main-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 24px 60px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 26px;
+            color: #ff69b4;
+            text-shadow: 0 0 12px rgba(255, 105, 180, 0.3);
+            margin-bottom: 6px;
+        }
+
+        .page-header p {
+            font-size: 15px;
+            color: rgba(255, 105, 180, 0.4);
+            letter-spacing: 1px;
+        }
+
+        /* Two-column layout */
+        .content-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            align-items: start;
+        }
+
+        /* Upload area */
+        .upload-panel {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 14px;
+            padding: 28px;
+            transition: border-color 0.3s ease;
+        }
+
+        .upload-panel:hover {
+            border-color: rgba(255, 105, 180, 0.25);
+        }
+
+        .upload-panel h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+            margin-bottom: 18px;
+        }
+
+        .drop-zone {
+            border: 2px dashed rgba(255, 105, 180, 0.2);
+            border-radius: 10px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: rgba(255, 105, 180, 0.5);
+            background: rgba(255, 105, 180, 0.04);
+        }
+
+        .drop-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        .drop-text {
+            font-size: 14px;
+            color: rgba(255, 105, 180, 0.45);
+            margin-bottom: 4px;
+        }
+
+        .drop-hint {
+            font-size: 12px;
+            color: rgba(255, 105, 180, 0.25);
+        }
+
+        .file-input-hidden {
+            display: none;
+        }
+
+        .selected-file {
+            font-size: 13px;
+            color: #ff69b4;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: rgba(255, 105, 180, 0.06);
+            border-radius: 6px;
+            display: none;
+        }
+
+        .detect-btn {
+            width: 100%;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            letter-spacing: 1px;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: linear-gradient(135deg, rgba(255, 105, 180, 0.25), rgba(255, 20, 147, 0.35));
+            color: #ff69b4;
+            border: 1px solid rgba(255, 105, 180, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .detect-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 105, 180, 0.35), rgba(255, 20, 147, 0.5));
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* Learning panel */
+        .learn-panel {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 14px;
+            padding: 28px;
+            min-height: 300px;
+        }
+
+        .learn-panel h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .learn-content {
+            position: relative;
+            min-height: 220px;
+        }
+
+        .fact-card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            pointer-events: none;
+        }
+
+        .fact-card.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+            position: relative;
+        }
+
+        .fact-category {
+            font-size: 11px;
+            color: rgba(255, 105, 180, 0.45);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .fact-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: #ff69b4;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .fact-body {
+            font-size: 14px;
+            color: rgba(232, 213, 234, 0.7);
+            line-height: 1.7;
+            margin-bottom: 14px;
+        }
+
+        .fact-tip {
+            font-size: 12px;
+            color: rgba(255, 105, 180, 0.35);
+            border-left: 2px solid rgba(255, 105, 180, 0.2);
+            padding-left: 12px;
+            font-style: italic;
+        }
+
+        .fact-dots {
+            display: flex;
+            gap: 6px;
+            margin-top: 18px;
+            justify-content: center;
+        }
+
+        .fact-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 105, 180, 0.2);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .fact-dot.active {
+            background: #ff69b4;
+        }
+
+        /* Processing overlay */
+        .processing-bar {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .processing-bar.show {
+            display: block;
+        }
+
+        .pbar-track {
+            width: 100%;
+            height: 3px;
+            background: rgba(255, 105, 180, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .pbar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff69b4, #ff1493);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .pbar-label {
+            font-size: 12px;
+            color: rgba(255, 105, 180, 0.4);
+            margin-top: 6px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* Results area */
+        .results-area {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .results-area.show {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .results-header h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+        }
+
+        .results-summary {
+            font-size: 13px;
+            color: rgba(255, 105, 180, 0.45);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .result-chart-box {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 14px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .result-chart-box h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Attack breakdown cards */
+        .attack-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+
+        .atk-card {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.1);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+
+        .atk-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 105, 180, 0.25);
+        }
+
+        .atk-name {
+            font-size: 12px;
+            color: rgba(255, 105, 180, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .atk-count {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 22px;
+            color: #ff69b4;
+        }
+
+        .atk-pct {
+            font-size: 11px;
+            color: rgba(255, 105, 180, 0.3);
+            margin-top: 4px;
+        }
+
+        /* Scrollable log table */
+        .log-box {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 14px;
+            padding: 22px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .log-box h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .log-table th {
+            text-align: left;
+            font-size: 11px;
+            color: rgba(255, 105, 180, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 105, 180, 0.1);
+            position: sticky;
+            top: 0;
+            background: rgba(20, 10, 28, 0.98);
+        }
+
+        .log-table td {
+            font-size: 13px;
+            padding: 7px 10px;
+            border-bottom: 1px solid rgba(255, 105, 180, 0.05);
+            color: #d4a5c5;
+        }
+
+        .log-table tr:hover td {
+            background: rgba(255, 105, 180, 0.03);
+        }
+
+        .tag-normal {
+            color: #6cc86c;
+        }
+
+        .tag-attack {
+            color: #ff4d6a;
+        }
+
+        /* Error message */
+        .error-box {
+            background: rgba(255, 50, 50, 0.1);
+            border: 1px solid rgba(255, 50, 50, 0.25);
+            border-radius: 10px;
+            padding: 14px 20px;
+            color: #ff6666;
+            margin-bottom: 18px;
+            font-size: 14px;
+        }
+
+        /* Scrollbar styling */
+        .log-box::-webkit-scrollbar {
+            width: 5px;
+        }
+        .log-box::-webkit-scrollbar-track {
+            background: rgba(255, 105, 180, 0.05);
+        }
+        .log-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 105, 180, 0.2);
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .content-split { grid-template-columns: 1fr; }
+            .results-grid { grid-template-columns: 1fr; }
+            .attack-breakdown { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <div class="topbar">
+        <span class="topbar-brand">IDS</span>
+        <nav class="topbar-nav">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'index' %}">Analytics</a>
+            <a href="{% url 'ids_detection' %}" class="active">Detect</a>
+            <a href="{% url 'grnn_analysis' %}">GrNN</a>
+        </nav>
+    </div>
+
+    <div class="main-wrap">
+        <div class="page-header">
+            <h1>Attack Detector</h1>
+            <p>Upload a network traffic dataset for AI-powered threat analysis</p>
+        </div>
+
+        {% if error %}
+        <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        <div class="content-split">
+            <!-- Upload Panel -->
+            <div class="upload-panel">
+                <h2>Upload Dataset</h2>
+                <form action="/ids_detection/" method="POST" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-icon">&#128194;</div>
+                        <div class="drop-text">Click or drag a CSV file here</div>
+                        <div class="drop-hint">Supported: .csv network traffic datasets</div>
+                    </div>
+                    <input type="file" name="dataset" accept=".csv" required class="file-input-hidden" id="fileInput" onchange="onFileSelect(this)">
+                    <div class="selected-file" id="selectedFile"></div>
+                    <button type="submit" class="detect-btn" id="detectBtn">&#128270; Analyze Traffic</button>
+                </form>
+                <div class="processing-bar" id="processingBar">
+                    <div class="pbar-track"><div class="pbar-fill" id="pbarFill"></div></div>
+                    <div class="pbar-label" id="pbarLabel">Preparing analysis...</div>
+                </div>
+            </div>
+
+            <!-- Learning Panel -->
+            <div class="learn-panel">
+                <h2><span>&#128218;</span> Learn While You Wait</h2>
+                <div class="learn-content" id="learnContent">
+                    <div class="fact-card active" data-index="0">
+                        <div class="fact-category">Network Security Basics</div>
+                        <div class="fact-title">What is an IDS?</div>
+                        <div class="fact-body">An Intrusion Detection System monitors network traffic for suspicious activity and known threats. It acts like a security camera for your network, alerting you when something unusual happens. IDS can be network-based (NIDS) or host-based (HIDS).</div>
+                        <div class="fact-tip">Most modern IDS use signature-based and anomaly-based detection methods together for better accuracy.</div>
+                    </div>
+                    <div class="fact-card" data-index="1">
+                        <div class="fact-category">Common Attacks</div>
+                        <div class="fact-title">DDoS Attacks Explained</div>
+                        <div class="fact-body">A Distributed Denial-of-Service attack floods a target server with traffic from multiple compromised systems. The goal is to overwhelm the server so legitimate users cannot access it. Major DDoS attacks can generate over 1 Tbps of traffic.</div>
+                        <div class="fact-tip">In 2023, the largest DDoS attack ever recorded peaked at 3.47 Tbps, targeting an Azure customer.</div>
+                    </div>
+                    <div class="fact-card" data-index="2">
+                        <div class="fact-category">Attack Patterns</div>
+                        <div class="fact-title">Port Scanning Techniques</div>
+                        <div class="fact-body">Port scanning is a reconnaissance technique used to identify open ports and services. Attackers use tools like Nmap to discover entry points. Common types include SYN scans (half-open), TCP connect scans, and UDP scans.</div>
+                        <div class="fact-tip">Not all port scans are malicious &#8212; security teams also use them for vulnerability assessment and network auditing.</div>
+                    </div>
+                    <div class="fact-card" data-index="3">
+                        <div class="fact-category">Prevention</div>
+                        <div class="fact-title">Brute Force Protection</div>
+                        <div class="fact-body">Brute force attacks try every possible password combination. Modern defenses include rate limiting, account lockouts after failed attempts, CAPTCHA challenges, and multi-factor authentication (MFA). Strong password policies are essential.</div>
+                        <div class="fact-tip">An 8-character password with only lowercase letters can be cracked in minutes, but adding numbers, symbols and uppercase makes it exponentially harder.</div>
+                    </div>
+                    <div class="fact-card" data-index="4">
+                        <div class="fact-category">Web Security</div>
+                        <div class="fact-title">SQL Injection Fundamentals</div>
+                        <div class="fact-body">SQL injection inserts malicious SQL code into application queries through user inputs. Attackers can bypass authentication, extract sensitive data, or even delete entire databases. It remains one of the top OWASP vulnerabilities.</div>
+                        <div class="fact-tip">Parameterized queries and input validation are the most effective defenses against SQL injection attacks.</div>
+                    </div>
+                    <div class="fact-card" data-index="5">
+                        <div class="fact-category">Advanced Threats</div>
+                        <div class="fact-title">Man-in-the-Middle Attacks</div>
+                        <div class="fact-body">MITM attacks intercept communication between two parties without their knowledge. The attacker can eavesdrop or modify data in transit. Common techniques include ARP spoofing, DNS spoofing, and SSL stripping.</div>
+                        <div class="fact-tip">HTTPS and certificate pinning are primary defenses, but public WiFi networks remain a common attack vector.</div>
+                    </div>
+                    <div class="fact-card" data-index="6">
+                        <div class="fact-category">Machine Learning in Security</div>
+                        <div class="fact-title">AI-Powered Threat Detection</div>
+                        <div class="fact-body">Machine learning models analyze network traffic patterns to identify anomalies that could indicate attacks. Unlike signature-based detection, ML can detect zero-day attacks by recognizing behavior that deviates from normal baselines.</div>
+                        <div class="fact-tip">This system uses a trained classifier that was built on labeled network flow data to distinguish between normal traffic and multiple attack types.</div>
+                    </div>
+                    <div class="fact-card" data-index="7">
+                        <div class="fact-category">Network Defense</div>
+                        <div class="fact-title">Defense in Depth</div>
+                        <div class="fact-body">A layered security approach uses multiple defensive mechanisms so that if one layer fails, others still protect the system. Layers include firewalls, IDS/IPS, encryption, access controls, security policies, and employee training.</div>
+                        <div class="fact-tip">No single security measure is foolproof. The combination of physical, technical, and administrative controls creates the strongest defense.</div>
+                    </div>
+                </div>
+                <div class="fact-dots" id="factDots"></div>
+            </div>
+        </div>
+
+        <!-- Results Area (shown after detection) -->
+        <div class="results-area" id="resultsArea">
+            <div class="results-header">
+                <h2>Detection Results</h2>
+                <span class="results-summary" id="resultsSummary"></span>
+            </div>
+
+            <div class="attack-breakdown" id="attackBreakdown"></div>
+
+            <div class="results-grid">
+                <div class="result-chart-box">
+                    <h3>Attack Distribution</h3>
+                    <canvas id="resultPieChart"></canvas>
+                </div>
+                <div class="result-chart-box">
+                    <h3>Attack Counts</h3>
+                    <canvas id="resultBarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="log-box">
+                <h3>Packet Analysis Log</h3>
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Packet #</th>
+                            <th>Classification</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== File upload interaction =====
+        var dropZone = document.getElementById('dropZone');
+        var fileInput = document.getElementById('fileInput');
+        var selectedFile = document.getElementById('selectedFile');
+        var uploadForm = document.getElementById('uploadForm');
+
+        dropZone.addEventListener('click', function() { fileInput.click(); });
+
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', function() {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                onFileSelect(fileInput);
+            }
+        });
+
+        function onFileSelect(input) {
+            if (input.files.length > 0) {
+                selectedFile.style.display = 'block';
+                selectedFile.textContent = '&#128196; ' + input.files[0].name + ' (' + (input.files[0].size / 1024).toFixed(1) + ' KB)';
+            }
+        }
+
+        // ===== Form submit with progress simulation =====
+        uploadForm.addEventListener('submit', function() {
+            var bar = document.getElementById('processingBar');
+            var fill = document.getElementById('pbarFill');
+            var label = document.getElementById('pbarLabel');
+            bar.classList.add('show');
+
+            var steps = [
+                { pct: 15, text: 'Reading dataset...' },
+                { pct: 35, text: 'Preprocessing features...' },
+                { pct: 55, text: 'Running ML classifier...' },
+                { pct: 75, text: 'Analyzing attack patterns...' },
+                { pct: 90, text: 'Generating report...' }
+            ];
+
+            var i = 0;
+            var interval = setInterval(function() {
+                if (i < steps.length) {
+                    fill.style.width = steps[i].pct + '%';
+                    label.textContent = steps[i].text;
+                    i++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 600);
+
+            // Start auto-cycling facts
+            startFactCycle();
+        });
+
+        // ===== Learning facts auto-cycle =====
+        var factCards = document.querySelectorAll('.fact-card');
+        var currentFact = 0;
+        var factInterval = null;
+
+        // Build dots
+        var dotsContainer = document.getElementById('factDots');
+        for (var d = 0; d < factCards.length; d++) {
+            var dot = document.createElement('span');
+            dot.className = 'fact-dot' + (d === 0 ? ' active' : '');
+            dot.setAttribute('data-idx', d);
+            dot.addEventListener('click', function() {
+                showFact(parseInt(this.getAttribute('data-idx')));
+            });
+            dotsContainer.appendChild(dot);
+        }
+
+        function showFact(idx) {
+            currentFact = idx;
+            factCards.forEach(function(card) { card.classList.remove('active'); });
+            factCards[idx].classList.add('active');
+            var dots = document.querySelectorAll('.fact-dot');
+            dots.forEach(function(d) { d.classList.remove('active'); });
+            dots[idx].classList.add('active');
+        }
+
+        function nextFact() {
+            showFact((currentFact + 1) % factCards.length);
+        }
+
+        function startFactCycle() {
+            if (!factInterval) {
+                factInterval = setInterval(nextFact, 4500);
+            }
+        }
+
+        // Auto start cycling slowly for browsing
+        factInterval = setInterval(nextFact, 7000);
+
+        // ===== Render results if data exists =====
+        var rawData = '{{ results|safe }}';
+        if (rawData && rawData !== 'null' && rawData !== '[]' && rawData.length > 2) {
+            try {
+                var attackData = JSON.parse(rawData);
+                if (Array.isArray(attackData) && attackData.length > 0) {
+                    renderResults(attackData);
+                }
+            } catch(e) {
+                console.error('Could not parse results:', e);
+            }
+        }
+
+        function renderResults(data) {
+            document.getElementById('resultsArea').classList.add('show');
+
+            var totalPackets = data.length;
+            var counts = {};
+            data.forEach(function(item) {
+                var name = item[1];
+                counts[name] = (counts[name] || 0) + 1;
+            });
+
+            var normalCount = counts['Normal'] || 0;
+            var threatCount = totalPackets - normalCount;
+            document.getElementById('resultsSummary').textContent =
+                totalPackets + ' packets analyzed | ' + threatCount + ' threats detected';
+
+            // Build breakdown cards
+            var breakdownHtml = '';
+            var labels = Object.keys(counts);
+            var values = Object.values(counts);
+
+            labels.forEach(function(name) {
+                var pct = ((counts[name] / totalPackets) * 100).toFixed(1);
+                breakdownHtml += '<div class="atk-card">' +
+                    '<div class="atk-name">' + name + '</div>' +
+                    '<div class="atk-count">' + counts[name] + '</div>' +
+                    '<div class="atk-pct">' + pct + '%</div>' +
+                '</div>';
+            });
+            document.getElementById('attackBreakdown').innerHTML = breakdownHtml;
+
+            // Colors
+            var colors = [
+                'rgba(108, 200, 108, 0.5)', 'rgba(255, 20, 147, 0.5)',
+                'rgba(255, 77, 106, 0.5)', 'rgba(255, 170, 68, 0.5)',
+                'rgba(200, 80, 160, 0.5)', 'rgba(255, 99, 132, 0.5)',
+                'rgba(150, 100, 200, 0.5)', 'rgba(100, 180, 255, 0.5)',
+                'rgba(255, 200, 100, 0.5)', 'rgba(180, 120, 200, 0.5)'
+            ];
+
+            // Pie chart
+            var pieCtx = document.getElementById('resultPieChart').getContext('2d');
+            new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderColor: 'rgba(13, 10, 16, 0.8)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'rgba(255, 105, 180, 0.5)',
+                                font: { size: 11, family: 'Rajdhani' },
+                                padding: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.label + ': ' + ctx.raw + ' packets';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Bar chart
+            var barCtx = document.getElementById('resultBarChart').getContext('2d');
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Packets',
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderColor: colors.slice(0, labels.length).map(function(c) {
+                            return c.replace('0.5', '0.8');
+                        }),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            ticks: { color: 'rgba(255, 105, 180, 0.4)', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 105, 180, 0.04)' }
+                        },
+                        y: {
+                            ticks: { color: 'rgba(255, 105, 180, 0.4)', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 105, 180, 0.04)' }
+                        }
+                    }
+                }
+            });
+
+            // Build log table (show first 200 entries for performance)
+            var logBody = document.getElementById('logBody');
+            var logHtml = '';
+            var showCount = Math.min(data.length, 200);
+            for (var i = 0; i < showCount; i++) {
+                var cls = data[i][1] === 'Normal' ? 'tag-normal' : 'tag-attack';
+                var status = data[i][1] === 'Normal' ? 'Clean' : 'Threat';
+                logHtml += '<tr>' +
+                    '<td>#' + data[i][0] + '</td>' +
+                    '<td class="' + cls + '">' + data[i][1] + '</td>' +
+                    '<td>' + status + '</td>' +
+                '</tr>';
+            }
+            if (data.length > 200) {
+                logHtml += '<tr><td colspan="3" style="color: rgba(255,105,180,0.3); text-align:center;">... and ' + (data.length - 200) + ' more packets</td></tr>';
+            }
+            logBody.innerHTML = logHtml;
+
+            // Smooth scroll to results
+            setTimeout(function() {
+                document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 300);
+        }
+    </script>
+</body>
+</html>

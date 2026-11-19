@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+    {% load static %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Intrusion System</title>
+    
+    <style>
+        /* Import Orbitron Font */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-image: url("{% static 'images/background.jpg' %}");
+            background-size: cover;
+            background-position: center;
+            color: #ff69b4;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        /* Dark Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 0;
+        }
+
+        /* Floating particle dots */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 105, 180, 0.4);
+            border-radius: 50%;
+            animation: floatUp linear infinite;
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-10vh) scale(1);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 700px;
+        }
+
+        /* Title Animation */
+        @keyframes slide-down {
+            0% {
+                transform: translateY(-60px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes neon-glow {
+            0% {
+                text-shadow: 0 0 5px #ff69b4, 0 0 10px #ff1493, 0 0 15px #ff69b4;
+            }
+            50% {
+                text-shadow: 0 0 10px #ff1493, 0 0 20px #ff69b4, 0 0 30px #ff1493;
+            }
+            100% {
+                text-shadow: 0 0 5px #ff69b4, 0 0 10px #ff1493, 0 0 15px #ff69b4;
+            }
+        }
+
+        .title {
+            font-size: 44px;
+            letter-spacing: 2px;
+            opacity: 0;
+            animation: slide-down 1s ease-out forwards, neon-glow 1.5s infinite alternate ease-in-out;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            color: rgba(255, 105, 180, 0.55);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            opacity: 0;
+            animation: slide-down 1s 0.3s ease-out forwards;
+        }
+
+        /* Navigation area - hover to reveal */
+        .nav-area {
+            position: relative;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-hint {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            color: rgba(255, 105, 180, 0.35);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: opacity 0.4s ease;
+            cursor: default;
+        }
+
+        .nav-area:hover .nav-hint {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .grid {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            pointer-events: none;
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .nav-area:hover .grid {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            max-height: 300px;
+        }
+
+        /* Buttons */
+        .btn {
+            text-decoration: none;
+            color: #121212;
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0px 0px 10px rgba(255, 105, 180, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #ff1493, #ff69b4);
+            box-shadow: 0px 0px 25px rgba(255, 105, 180, 1);
+            transform: scale(1.08);
+        }
+
+        /* Scan line effect */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 105, 180, 0.15), transparent);
+            z-index: 3;
+            animation: scanMove 4s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanMove {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay"></div>
+    <div class="scanline"></div>
+
+    <!-- Floating particles -->
+    <div class="particles" id="particleContainer"></div>
+
+    <div class="container">
+        <h1 class="title">AI Intrusion System</h1>
+        <p class="subtitle">Network Security Powered by Intelligence</p>
+        
+        <div class="nav-area">
+            <span class="nav-hint">&#9650; Hover here to navigate &#9650;</span>
+            <div class="grid">
+                <a href="{% url 'dashboard' %}" class="btn">Dashboard</a>
+                <a href="{% url 'admin:index' %}" class="btn">Admin Login</a>
+                <a href="{% url 'index' %}" class="btn">System Analytics</a>
+                <a href="{% url 'ids_detection' %}" class="btn">Upload &amp; Detect</a>
+                <a href="{% url 'grnn_analysis' %}" class="btn">GrNN Analysis</a>
+                <a href="{% url 'public_login' %}" class="btn">Public Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate floating particles
+        (function() {
+            var container = document.getElementById('particleContainer');
+            for (var i = 0; i < 30; i++) {
+                var p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDuration = (6 + Math.random() * 10) + 's';
+                p.style.animationDelay = (Math.random() * 8) + 's';
+                p.style.width = (2 + Math.random() * 3) + 'px';
+                p.style.height = p.style.width;
+                container.appendChild(p);
+            }
+        })();
+    </script>
+</body>
+</html>

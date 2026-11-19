@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDS Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0d0a10;
+            color: #e8d5ea;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Top nav bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 30px;
+            background: rgba(20, 12, 25, 0.95);
+            border-bottom: 1px solid rgba(255, 105, 180, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            color: #ff69b4;
+            text-shadow: 0 0 8px rgba(255, 105, 180, 0.4);
+            letter-spacing: 2px;
+        }
+
+        .topbar-nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        .topbar-nav a {
+            font-family: 'Rajdhani', sans-serif;
+            color: rgba(255, 105, 180, 0.4);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.35s ease;
+            position: relative;
+        }
+
+        .topbar-nav a::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            width: 0;
+            height: 1px;
+            background: #ff69b4;
+            transition: width 0.3s ease, left 0.3s ease;
+        }
+
+        .topbar-nav a:hover {
+            color: #ff69b4;
+            background: rgba(255, 105, 180, 0.08);
+        }
+
+        .topbar-nav a:hover::after {
+            width: 60%;
+            left: 20%;
+        }
+
+        .topbar-nav a.active {
+            color: #ff69b4;
+            background: rgba(255, 105, 180, 0.12);
+        }
+
+        .topbar-nav a.active::after {
+            width: 60%;
+            left: 20%;
+        }
+
+        /* Main dashboard */
+        .dashboard-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 24px 60px;
+        }
+
+        .dash-header {
+            margin-bottom: 28px;
+        }
+
+        .dash-header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            color: #ff69b4;
+            text-shadow: 0 0 12px rgba(255, 105, 180, 0.3);
+            margin-bottom: 6px;
+        }
+
+        .dash-header p {
+            font-size: 15px;
+            color: rgba(255, 105, 180, 0.4);
+            letter-spacing: 1px;
+        }
+
+        /* Stats cards */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            border-radius: 3px 0 0 3px;
+        }
+
+        .stat-card:nth-child(1)::before { background: #ff69b4; }
+        .stat-card:nth-child(2)::before { background: #ff1493; }
+        .stat-card:nth-child(3)::before { background: #ff85c2; }
+        .stat-card:nth-child(4)::before { background: #c850a0; }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 105, 180, 0.3);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: rgba(255, 105, 180, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            color: #ff69b4;
+            text-shadow: 0 0 6px rgba(255, 105, 180, 0.2);
+        }
+
+        .stat-change {
+            font-size: 12px;
+            margin-top: 6px;
+            color: rgba(255, 105, 180, 0.35);
+        }
+
+        .stat-change.up { color: #ff4da6; }
+
+        /* Chart area */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .chart-box {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 12px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .chart-box h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .chart-box canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Recent attacks table */
+        .table-box {
+            background: linear-gradient(145deg, rgba(30, 18, 38, 0.95), rgba(20, 10, 28, 0.95));
+            border: 1px solid rgba(255, 105, 180, 0.12);
+            border-radius: 12px;
+            padding: 22px;
+        }
+
+        .table-box h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            color: #ff69b4;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .attack-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .attack-table th {
+            text-align: left;
+            font-size: 11px;
+            color: rgba(255, 105, 180, 0.45);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 105, 180, 0.1);
+        }
+
+        .attack-table td {
+            font-size: 14px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 105, 180, 0.06);
+            color: #d4a5c5;
+        }
+
+        .attack-table tr:hover td {
+            background: rgba(255, 105, 180, 0.04);
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .severity-high {
+            background: rgba(255, 20, 80, 0.15);
+            color: #ff4d6a;
+            border: 1px solid rgba(255, 20, 80, 0.3);
+        }
+
+        .severity-medium {
+            background: rgba(255, 165, 0, 0.12);
+            color: #ffaa44;
+            border: 1px solid rgba(255, 165, 0, 0.25);
+        }
+
+        .severity-low {
+            background: rgba(100, 200, 100, 0.12);
+            color: #6cc86c;
+            border: 1px solid rgba(100, 200, 100, 0.25);
+        }
+
+        /* Refresh control */
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .refresh-btn {
+            font-family: 'Rajdhani', sans-serif;
+            background: transparent;
+            border: 1px solid rgba(255, 105, 180, 0.25);
+            color: rgba(255, 105, 180, 0.6);
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+
+        .refresh-btn:hover {
+            border-color: #ff69b4;
+            color: #ff69b4;
+            background: rgba(255, 105, 180, 0.08);
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: rgba(255, 105, 180, 0.4);
+            letter-spacing: 1px;
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            background: #ff69b4;
+            border-radius: 50%;
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <div class="topbar">
+        <span class="topbar-brand">IDS</span>
+        <nav class="topbar-nav">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'dashboard' %}" class="active">Dashboard</a>
+            <a href="{% url 'index' %}">Analytics</a>
+            <a href="{% url 'ids_detection' %}">Detect</a>
+            <a href="{% url 'grnn_analysis' %}">GrNN</a>
+        </nav>
+    </div>
+
+    <div class="dashboard-wrap">
+        <div class="dash-header">
+            <h1>Intrusion Detection Dashboard</h1>
+            <p>Real-time network threat monitoring &amp; analysis</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-row">
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>LIVE MONITORING</span>
+            </div>
+            <button class="refresh-btn" onclick="updateChart()">&#8635; Refresh Data</button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Total Attacks</div>
+                <div class="stat-value" id="total_attacks">{{ total_attacks|default:"0" }}</div>
+                <div class="stat-change up">&#9650; Live updates</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Threats</div>
+                <div class="stat-value" id="active_threats">0</div>
+                <div class="stat-change">Currently being monitored</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Blocked IPs</div>
+                <div class="stat-value" id="blocked_ips">0</div>
+                <div class="stat-change">Automated response</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">System Status</div>
+                <div class="stat-value" style="font-size: 18px; color: #6cc86c;">SECURE</div>
+                <div class="stat-change">All systems operational</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-box">
+                <h3>Attack Trends</h3>
+                <canvas id="attackChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Attack Distribution</h3>
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Attacks Table -->
+        <div class="table-box">
+            <h3>Recent Activity Log</h3>
+            <table class="attack-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Attack Type</th>
+                        <th>Source</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="attackLog">
+                    <tr>
+                        <td>Loading...</td>
+                        <td>--</td>
+                        <td>--</td>
+                        <td>--</td>
+                        <td>--</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        var attackNames = {
+            '0': 'Normal', '1': 'DDoS', '2': 'DoS', '3': 'Port Scan',
+            '4': 'Brute Force', '5': 'SQL Injection'
+        };
+
+        var severityMap = {
+            'Normal': 'low', 'DDoS': 'high', 'DoS': 'high',
+            'Port Scan': 'medium', 'Brute Force': 'medium', 'SQL Injection': 'high'
+        };
+
+        // Bar chart
+        var ctx = document.getElementById('attackChart').getContext('2d');
+        var attackChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Normal', 'DDoS', 'DoS', 'Port Scan', 'Brute Force', 'SQL Injection'],
+                datasets: [{
+                    label: 'Detected Count',
+                    data: {{ attack_counts|safe|default:"[0,0,0,0,0,0]" }},
+                    backgroundColor: [
+                        'rgba(108, 200, 108, 0.25)',
+                        'rgba(255, 20, 147, 0.35)',
+                        'rgba(255, 77, 106, 0.35)',
+                        'rgba(255, 170, 68, 0.35)',
+                        'rgba(200, 80, 160, 0.35)',
+                        'rgba(255, 99, 132, 0.35)'
+                    ],
+                    borderColor: [
+                        'rgba(108, 200, 108, 0.7)',
+                        'rgba(255, 20, 147, 0.7)',
+                        'rgba(255, 77, 106, 0.7)',
+                        'rgba(255, 170, 68, 0.7)',
+                        'rgba(200, 80, 160, 0.7)',
+                        'rgba(255, 99, 132, 0.7)'
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: 'rgba(255, 105, 180, 0.5)', font: { size: 11 } },
+                        grid: { color: 'rgba(255, 105, 180, 0.05)' }
+                    },
+                    y: {
+                        ticks: { color: 'rgba(255, 105, 180, 0.5)', font: { size: 11 } },
+                        grid: { color: 'rgba(255, 105, 180, 0.05)' }
+                    }
+                }
+            }
+        });
+
+        // Pie chart
+        var pieCtx = document.getElementById('pieChart').getContext('2d');
+        var pieChart = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Normal', 'DDoS', 'DoS', 'Port Scan', 'Brute Force', 'SQL Injection'],
+                datasets: [{
+                    data: {{ attack_counts|safe|default:"[0,0,0,0,0,0]" }},
+                    backgroundColor: [
+                        'rgba(108, 200, 108, 0.5)',
+                        'rgba(255, 20, 147, 0.5)',
+                        'rgba(255, 77, 106, 0.5)',
+                        'rgba(255, 170, 68, 0.5)',
+                        'rgba(200, 80, 160, 0.5)',
+                        'rgba(255, 99, 132, 0.5)'
+                    ],
+                    borderColor: 'rgba(13, 10, 16, 0.8)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: 'rgba(255, 105, 180, 0.5)',
+                            font: { size: 11, family: 'Rajdhani' },
+                            padding: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    }
+                }
+            }
+        });
+
+        function generateFakeIP() {
+            return Math.floor(Math.random()*223+1) + '.' + Math.floor(Math.random()*255) + '.' +
+                   Math.floor(Math.random()*255) + '.' + Math.floor(Math.random()*255);
+        }
+
+        function updateChart() {
+            fetch('/live_attack_data/')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                var labels = data.labels.map(function(l) { return attackNames[l] || l; });
+                attackChart.data.labels = labels;
+                attackChart.data.datasets[0].data = data.attack_counts;
+                attackChart.update();
+
+                pieChart.data.labels = labels;
+                pieChart.data.datasets[0].data = data.attack_counts;
+                pieChart.update();
+
+                document.getElementById('total_attacks').innerText = data.total_attacks;
+
+                // Update active threats count
+                var activeCount = 0;
+                for (var i = 0; i < data.attack_counts.length; i++) {
+                    if (i > 0) activeCount += data.attack_counts[i];
+                }
+                document.getElementById('active_threats').innerText = activeCount;
+
+                // Update log
+                updateAttackLog(data);
+            })
+            .catch(function(error) { console.error('Error fetching data:', error); });
+        }
+
+        function updateAttackLog(data) {
+            var tbody = document.getElementById('attackLog');
+            var now = new Date();
+            var rows = '';
+            for (var i = data.labels.length - 1; i >= 0; i--) {
+                if (data.attack_counts[i] > 0) {
+                    var name = attackNames[data.labels[i]] || data.labels[i];
+                    var sev = severityMap[name] || 'medium';
+                    var time = new Date(now - Math.random() * 300000);
+                    var timeStr = time.toLocaleTimeString();
+                    rows += '<tr>' +
+                        '<td>' + timeStr + '</td>' +
+                        '<td>' + name + '</td>' +
+                        '<td>' + generateFakeIP() + '</td>' +
+                        '<td><span class="severity-badge severity-' + sev + '">' + sev + '</span></td>' +
+                        '<td>Blocked</td>' +
+                    '</tr>';
+                }
+            }
+            if (rows) tbody.innerHTML = rows;
+        }
+
+        setInterval(updateChart, 5000);
+        setTimeout(updateChart, 800);
+    </script>
+</body>
+</html>

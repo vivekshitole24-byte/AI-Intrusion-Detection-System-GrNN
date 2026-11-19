@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Live Monitor — GrNN Analyzer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Live Threat Monitor</h1>
+    <p class="page-sub">Real-time granular analysis of incoming network flows</p>
+  </div>
+  <div class="header-actions">
+    <div class="live-indicator">
+      <span class="pulse-dot"></span> Live
+    </div>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="stats-row" id="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Flows</div>
+    <div class="stat-value" id="stat-total">—</div>
+    <div class="stat-sub">analyzed this session</div>
+  </div>
+  <div class="stat-card danger">
+    <div class="stat-label">Threats Detected</div>
+    <div class="stat-value" id="stat-attacks">—</div>
+    <div class="stat-sub" id="stat-threat-rate">—</div>
+  </div>
+  <div class="stat-card micro-card">
+    <div class="stat-label">Micro Granule Fires</div>
+    <div class="stat-value" id="stat-micro">—</div>
+    <div class="stat-sub">DDoS · SQLi · SYN</div>
+  </div>
+  <div class="stat-card meso-card">
+    <div class="stat-label">Meso Granule Fires</div>
+    <div class="stat-value" id="stat-meso">—</div>
+    <div class="stat-sub">Scan · Brute Force</div>
+  </div>
+  <div class="stat-card macro-card">
+    <div class="stat-label">Macro Granule Fires</div>
+    <div class="stat-value" id="stat-macro">—</div>
+    <div class="stat-sub">APT · Botnet · Beacon</div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">Attack Distribution</span>
+      <span class="chart-badge">Per Label</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chartAttacks"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">Granule Activation</span>
+      <span class="chart-badge">Which scale fired</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chartGranules"></canvas></div>
+  </div>
+
+  <div class="chart-card wide">
+    <div class="chart-header">
+      <span class="chart-title">Granule Attribution per Event</span>
+      <span class="chart-badge">α weights last 20 events</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chartAlpha"></canvas></div>
+  </div>
+</div>
+
+<!-- Live Event Feed -->
+<div class="feed-section">
+  <div class="feed-header">
+    <span class="feed-title">Event Feed</span>
+    <div class="feed-filters">
+      <button class="filter-btn active" onclick="filterFeed('all', this)">All</button>
+      <button class="filter-btn" onclick="filterFeed('attack', this)">Attacks Only</button>
+      <button class="filter-btn" onclick="filterFeed('micro', this)">Micro</button>
+      <button class="filter-btn" onclick="filterFeed('meso', this)">Meso</button>
+      <button class="filter-btn" onclick="filterFeed('macro', this)">Macro</button>
+    </div>
+    <label class="pause-toggle">
+      <input type="checkbox" id="pauseToggle"/> Pause
+    </label>
+  </div>
+  <div class="feed-table-wrap">
+    <table class="feed-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Classification</th>
+          <th>Confidence</th>
+          <th>Dominant Granule</th>
+          <th>α Micro</th>
+          <th>α Meso</th>
+          <th>α Macro</th>
+          <th>Granule Bars</th>
+        </tr>
+      </thead>
+      <tbody id="feed-body"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CLASS_NAMES = {{ class_names|safe }};
+const COLORS = {
+  'Benign':      '#4ade80',
+  'DDoS':        '#f87171',
+  'DoS':         '#fb923c',
+  'Port Scan':   '#fbbf24',
+  'Brute Force': '#a78bfa',
+  'Web Attack':  '#60a5fa',
+  'Botnet':      '#f472b6',
+  'Infiltration':'#34d399',
+};
+const G_COLORS = { Micro: '#3b82f6', Meso: '#f59e0b', Macro: '#8b5cf6' };
+
+let feedFilter = 'all';
+let isPaused   = false;
+let alphaHistory = [];
+
+document.getElementById('pauseToggle').addEventListener('change', e => {
+  isPaused = e.target.checked;
+});
+
+// ── Charts Setup ────────────────────────────────────────────────────────────
+const ctxA = document.getElementById('chartAttacks').getContext('2d');
+const chartAttacks = new Chart(ctxA, {
+  type: 'doughnut',
+  data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0, hoverOffset: 8 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#64748b', font: { family: 'Inter', size: 12 }, padding: 16 } }
+    },
+    animation: { duration: 400 }
+  }
+});
+
+const ctxG = document.getElementById('chartGranules').getContext('2d');
+const chartGranules = new Chart(ctxG, {
+  type: 'bar',
+  data: {
+    labels: ['Micro', 'Meso', 'Macro'],
+    datasets: [{
+      data: [0, 0, 0],
+      backgroundColor: [G_COLORS.Micro, G_COLORS.Meso, G_COLORS.Macro],
+      borderRadius: 8, borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#64748b', font: { family: 'Inter' } } },
+      y: { grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', font: { family: 'Inter' } } }
+    },
+    animation: { duration: 400 }
+  }
+});
+
+const ctxAl = document.getElementById('chartAlpha').getContext('2d');
+const chartAlpha = new Chart(ctxAl, {
+  type: 'bar',
+  data: {
+    labels: Array.from({length: 20}, (_,i)=>`#${i+1}`),
+    datasets: [
+      { label: 'α Micro',  data: [], backgroundColor: G_COLORS.Micro,  borderRadius: 4 },
+      { label: 'α Meso',   data: [], backgroundColor: G_COLORS.Meso,   borderRadius: 4 },
+      { label: 'α Macro',  data: [], backgroundColor: G_COLORS.Macro,  borderRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#64748b', font: { family: 'Inter', size: 12 }, padding: 16 } } },
+    scales: {
+      x: { stacked: true, grid: { display: false }, ticks: { color: '#64748b' } },
+      y: { stacked: true, max: 100, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', callback: v => v+'%' } }
+    },
+    animation: { duration: 300 }
+  }
+});
+
+// ── Data Fetch & Update ──────────────────────────────────────────────────────
+async function fetchAndUpdate() {
+  if (isPaused) return;
+  try {
+    const res  = await fetch('/api/live?n=40');
+    const data = await res.json();
+
+    // Stats
+    document.getElementById('stat-total').textContent   = data.total_events.toLocaleString();
+    document.getElementById('stat-attacks').textContent = data.attack_count.toLocaleString();
+    const rate = data.total_events > 0
+      ? ((data.attack_count / data.total_events) * 100).toFixed(1) + '% threat rate'
+      : '—';
+    document.getElementById('stat-threat-rate').textContent = rate;
+    document.getElementById('stat-micro').textContent = (data.granule_counts?.Micro || 0).toLocaleString();
+    document.getElementById('stat-meso').textContent  = (data.granule_counts?.Meso  || 0).toLocaleString();
+    document.getElementById('stat-macro').textContent = (data.granule_counts?.Macro || 0).toLocaleString();
+
+    // Attack distribution chart
+    const labels = Object.keys(data.attack_totals).filter(k => data.attack_totals[k] > 0);
+    const values = labels.map(k => data.attack_totals[k]);
+    const bgColors = labels.map(k => COLORS[k] || '#94a3b8');
+    chartAttacks.data.labels = labels;
+    chartAttacks.data.datasets[0].data = values;
+    chartAttacks.data.datasets[0].backgroundColor = bgColors;
+    chartAttacks.update();
+
+    // Granule bar chart
+    chartGranules.data.datasets[0].data = [
+      data.granule_counts?.Micro || 0,
+      data.granule_counts?.Meso  || 0,
+      data.granule_counts?.Macro || 0,
+    ];
+    chartGranules.update();
+
+    // Alpha stacked bar chart (last 20 events)
+    const events = (data.events || []).slice(-20);
+    alphaHistory = events;
+    chartAlpha.data.labels = events.map((_, i) => `#${i+1}`);
+    chartAlpha.data.datasets[0].data = events.map(e => e.alpha_micro || 0);
+    chartAlpha.data.datasets[1].data = events.map(e => e.alpha_meso  || 0);
+    chartAlpha.data.datasets[2].data = events.map(e => e.alpha_macro || 0);
+    chartAlpha.update();
+
+    // Feed table
+    updateFeed(data.events || []);
+  } catch(e) { console.warn('Fetch error', e); }
+}
+
+function updateFeed(events) {
+  const tbody = document.getElementById('feed-body');
+  const rows = [];
+  const recent = events.slice(-40).reverse();
+
+  for (const e of recent) {
+    if (feedFilter === 'attack' && !e.is_attack) continue;
+    if (feedFilter === 'micro'  && e.dominant_granule !== 'Micro') continue;
+    if (feedFilter === 'meso'   && e.dominant_granule !== 'Meso') continue;
+    if (feedFilter === 'macro'  && e.dominant_granule !== 'Macro') continue;
+
+    const labelClass = e.is_attack ? 'label-attack' : 'label-benign';
+    const granuleClass = `granule-${(e.dominant_granule||'').toLowerCase()}`;
+    const mi = e.alpha_micro || 0;
+    const ms = e.alpha_meso  || 0;
+    const mc = e.alpha_macro || 0;
+
+    rows.push(`
+      <tr class="${e.is_attack ? 'row-attack' : ''} row-fade">
+        <td class="td-time">${e.timestamp || '--:--:--'}</td>
+        <td><span class="label-badge ${labelClass}">${e.label}</span></td>
+        <td><span class="conf-badge">${e.confidence}%</span></td>
+        <td><span class="granule-badge ${granuleClass}">${e.dominant_granule}</span></td>
+        <td class="td-alpha">${mi}%</td>
+        <td class="td-alpha">${ms}%</td>
+        <td class="td-alpha">${mc}%</td>
+        <td>
+          <div class="alpha-bars">
+            <div class="alpha-bar micro-bar" style="width:${mi}%" title="Micro ${mi}%"></div>
+            <div class="alpha-bar meso-bar"  style="width:${ms}%" title="Meso ${ms}%"></div>
+            <div class="alpha-bar macro-bar" style="width:${mc}%" title="Macro ${mc}%"></div>
+          </div>
+        </td>
+      </tr>`);
+  }
+  tbody.innerHTML = rows.join('');
+}
+
+function filterFeed(f, btn) {
+  feedFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// Poll every second
+fetchAndUpdate();
+setInterval(fetchAndUpdate, 1000);
+</script>
+{% endblock %}
+

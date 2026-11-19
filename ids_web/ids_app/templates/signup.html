@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cyberpunk Signup</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'ids_app/css/admin_theme.css' %}">
+</head>
+<body>
+    <div class="cyberpunk-login">
+        <h2>📝 Cyberpunk IDS Signup</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="cyberpunk-btn">Sign Up</button>
+        </form>
+        <p>Already have an account? <a href="{% url 'public_login' %}">Login</a></p>
+    </div>
+</body>
+</html>
